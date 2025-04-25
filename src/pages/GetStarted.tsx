@@ -7,7 +7,7 @@ const GetStarted = () => {
   const navigate = useNavigate();
 
   const handleStudentSignup = () => {
-    window.open("https://career-dive.netlify.app/student/", "_blank");
+    window.open("https://career-dive.netlify.app/", "_blank");
   };
 
   return (
