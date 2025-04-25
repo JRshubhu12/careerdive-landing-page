@@ -72,7 +72,7 @@ const Index = () => {
       </section>
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="py-20 bg-[#0D0F17]">
+      <section id="how-it-works" className="py-20 bg-[#0D0F17] text-white">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold mb-6">How CareerDive Works</h2>
@@ -80,42 +80,36 @@ const Index = () => {
               Getting started is simple. Find your mentor and begin your journey in three easy steps.
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-12 max-w-6xl mx-auto text-center">
-            {[
-              {
-                title: "Create Your Account",
-                description: "Sign up and complete your profile to help us match you with the right mentors.",
-                image: "/how-it-works/create-account.png", // Update with your correct image path
-              },
-              {
-                title: "Find Your Mentor",
-                description: "Browse our network of industry professionals and choose the perfect match for your goals.",
-                image: "/how-it-works/find-mentor.png", // Update with your correct image path
-              },
-              {
-                title: "Book Your Sessions",
-                description: "Schedule 1:1 video calls or chat sessions at times that work for you and your mentor.",
-                image: "/how-it-works/book-session.png", // Update with your correct image path
-              },
-            ].map((step, idx) => (
-              <div
-                key={idx}
-                className="flex flex-col items-center bg-[#1A2238] rounded-2xl p-8 shadow-lg hover:scale-105 transform transition duration-300"
-              >
-                <div className="w-20 h-20 mb-6">
-                  <img
-                    src={step.image}
-                    alt={step.title}
-                    className="w-full h-full object-contain"
-                  />
+
+          <div className="relative max-w-3xl mx-auto">
+            <div className="border-l-4 border-blue-500 pl-6 space-y-12">
+              {[
+                {
+                  title: "Create Your Account",
+                  description: "Sign up and complete your profile to help us match you with the right mentors.",
+                },
+                {
+                  title: "Find Your Mentor",
+                  description: "Browse our network of industry professionals and choose the perfect match for your goals.",
+                },
+                {
+                  title: "Book Your Sessions",
+                  description: "Schedule 1:1 video calls sessions at times that work for you and your mentor.",
+                },
+              ].map((step, idx) => (
+                <div key={idx} className="relative">
+                  <div className="absolute -left-8 top-1 text-xl bg-blue-500 text-white w-8 h-8 flex items-center justify-center rounded-full font-bold">
+                    {idx + 1}
+                  </div>
+                  <h3 className="text-2xl font-semibold mb-2">{step.title}</h3>
+                  <p className="text-gray-400">{step.description}</p>
                 </div>
-                <h3 className="text-2xl font-semibold mb-4">{step.title}</h3>
-                <p className="text-gray-400">{step.description}</p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </section>
+
 
 
       {/* Pricing Section */}
