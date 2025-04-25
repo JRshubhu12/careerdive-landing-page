@@ -1,4 +1,3 @@
-
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -6,6 +5,10 @@ import { useNavigate } from "react-router-dom";
 
 const GetStarted = () => {
   const navigate = useNavigate();
+
+  const handleStudentSignup = () => {
+    window.open("https://career-dive.netlify.app/student/", "_blank");
+  };
 
   return (
     <div className="min-h-screen bg-[#0A0A0B] text-white">
@@ -18,7 +21,7 @@ const GetStarted = () => {
         </div>
 
         <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-          <Card className="bg-[#12141D] border-0 p-8 flex flex-col items-center text-center">
+          <Card className="bg-[#12141D] border-0 p-8 flex flex-col items-center text-center hover:transform hover:scale-105 transition-all duration-300">
             <div className="w-32 h-32 rounded-full bg-[#1A2238] flex items-center justify-center mb-6">
               <img
                 src="/lovable-uploads/b07db249-ce09-4d60-b4fb-ba869faeb9fc.png"
@@ -31,7 +34,7 @@ const GetStarted = () => {
               Looking for guidance from industry professionals to accelerate my career growth
             </p>
             <Button 
-              onClick={() => navigate('/signup-mentee')}
+              onClick={handleStudentSignup}
               className="w-full bg-[#3B82F6] hover:bg-[#2563EB] text-white"
             >
               Sign Up as a Student <ArrowRight className="ml-2" />

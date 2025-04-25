@@ -5,32 +5,59 @@ import { Navigation } from "@/components/Navigation";
 import { PricingCard } from "@/components/PricingCard";
 import { TestimonialCard } from "@/components/TestimonialCard";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+
 const Index = () => {
   const navigate = useNavigate();
   return <div className="min-h-screen bg-[#0A0A0B] text-white">
       <Navigation />
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-6">
+      <section className="pt-32 pb-20 px-6 relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-blue-500/10 to-transparent pointer-events-none" />
         <div className="container mx-auto">
           <div className="max-w-3xl mx-auto text-center">
-            <span className="inline-block bg-[#1A2238] text-[#3B82F6] text-sm font-semibold px-4 py-2 rounded-full mb-6">
+            <span className="inline-block bg-[#1A2238] text-[#3B82F6] text-sm font-semibold px-4 py-2 rounded-full mb-6 animate-fade-in">
               Sessions starting at just ₹499
             </span>
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
               Ready to Accelerate Your Career?
             </h1>
             <p className="text-gray-400 text-lg mb-8">
               Join thousands of professionals who are advancing their careers with expert guidance.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" onClick={() => navigate('/get-started')} className="bg-[#3B82F6] hover:bg-[#2563EB]">
+              <Button 
+                size="lg" 
+                onClick={() => navigate('/get-started')} 
+                className="bg-[#3B82F6] hover:bg-[#2563EB] transform hover:scale-105 transition-all duration-300"
+              >
                 Get Started Now <ArrowRight className="ml-2" />
               </Button>
-              <Button size="lg" variant="outline" className="border-gray-700 hover:bg-gray-800 text-slate-950">
+              <Button 
+                size="lg" 
+                variant="outline" 
+                className="border-gray-700 hover:bg-gray-800 text-white"
+              >
                 Learn More
               </Button>
             </div>
+          </div>
+          <div className="mt-16 grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            <img
+              src="https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?auto=format&fit=crop&w=800&q=80"
+              alt="Tech Mentorship"
+              className="rounded-lg shadow-xl hover:transform hover:scale-105 transition-all duration-300"
+            />
+            <img
+              src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=800&q=80"
+              alt="Career Growth"
+              className="rounded-lg shadow-xl hover:transform hover:scale-105 transition-all duration-300"
+            />
+            <img
+              src="https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?auto=format&fit=crop&w=800&q=80"
+              alt="Professional Development"
+              className="rounded-lg shadow-xl hover:transform hover:scale-105 transition-all duration-300"
+            />
           </div>
         </div>
       </section>
@@ -127,8 +154,9 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-20 border-t border-gray-800">
+      {/* Footer with gradient border */}
+      <footer className="py-20 border-t border-gray-800 relative">
+        <div className="absolute inset-0 bg-gradient-to-t from-blue-500/5 to-transparent pointer-events-none" />
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div>
@@ -171,4 +199,5 @@ const Index = () => {
       </footer>
     </div>;
 };
+
 export default Index;
