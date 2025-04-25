@@ -29,7 +29,7 @@ const GetStarted = () => {
                 className="w-24 h-24 object-contain"
               />
             </div>
-            <h2 className="text-2xl font-bold mb-4">I'm a Mentee</h2>
+            <h2 className="text-2xl font-bold mb-4 text-white">I'm a Mentee</h2>
             <p className="text-gray-400 mb-8">
               Looking for guidance from industry professionals to accelerate my career growth
             </p>
@@ -42,30 +42,39 @@ const GetStarted = () => {
           </Card>
 
           <Card className="bg-[#12141D] border-0 p-8 flex flex-col items-center text-center">
-            <div className="w-32 h-32 rounded-full bg-[#1A2238] flex items-center justify-center mb-6">
-              <img
-                src="/lovable-uploads/b07db249-ce09-4d60-b4fb-ba869faeb9fc.png"
-                alt="Mentor"
-                className="w-24 h-24 object-contain"
-              />
-            </div>
-            <h2 className="text-2xl font-bold mb-4">I'm a Mentor</h2>
-            <p className="text-gray-400 mb-8">
-              Ready to share my expertise and guide students on their professional journey
-            </p>
-            <Button 
-              onClick={() => navigate('/apply-mentor')}
-              className="w-full bg-[#3B82F6] hover:bg-[#2563EB] text-white"
-            >
-              Apply as a Mentor <ArrowRight className="ml-2" />
-            </Button>
-          </Card>
+  <div className="w-32 h-32 rounded-full bg-[#1A2238] flex items-center justify-center mb-6">
+    <img
+      src="/lovable-uploads/b07db249-ce09-4d60-b4fb-ba869faeb9fc.png"
+      alt="Mentor"
+      className="w-24 h-24 object-contain"
+    />
+  </div>
+  <h2 className="text-2xl font-bold mb-4 text-white">I'm a Mentor</h2>
+  <p className="text-gray-400 mb-8">
+    Ready to share my expertise and guide students on their professional journey
+  </p>
+  <div className="w-full space-y-3">
+    <Button
+      onClick={() => navigate('/apply-mentor')}
+      className="w-full bg-[#3B82F6] hover:bg-[#2563EB] text-white"
+    >
+      Apply as a Mentor <ArrowRight className="ml-2" />
+    </Button>
+    <Button
+      onClick={() => window.location.href = "https://mentor-dashboard.netlify.app/dashboard"}
+      className="w-full bg-green-600 hover:bg-green-700 text-white"
+    >
+      Login to Your Dashboard <ArrowRight className="ml-2" />
+    </Button>
+  </div>
+</Card>
+
         </div>
 
         <div className="text-center mt-8">
           <p className="text-gray-400">
             Already have an account?{' '}
-            <a href="/login" className="text-[#3B82F6] hover:underline">
+            <a href="https://mentor-dashboard.netlify.app/dashboard" className="text-[#3B82F6] hover:underline">
               Log in
             </a>
           </p>
