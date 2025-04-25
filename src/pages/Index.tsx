@@ -1,22 +1,13 @@
-
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { PricingCard } from "@/components/PricingCard";
 import { TestimonialCard } from "@/components/TestimonialCard";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 const Index = () => {
   const navigate = useNavigate();
-
-  return (
-    <div className="min-h-screen bg-[#0A0A0B] text-white">
+  return <div className="min-h-screen bg-[#0A0A0B] text-white">
       <Navigation />
 
       {/* Hero Section */}
@@ -33,18 +24,10 @@ const Index = () => {
               Join thousands of professionals who are advancing their careers with expert guidance.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button
-                size="lg"
-                onClick={() => navigate('/get-started')}
-                className="bg-[#3B82F6] hover:bg-[#2563EB]"
-              >
+              <Button size="lg" onClick={() => navigate('/get-started')} className="bg-[#3B82F6] hover:bg-[#2563EB]">
                 Get Started Now <ArrowRight className="ml-2" />
               </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="border-gray-700 text-white hover:bg-gray-800"
-              >
+              <Button size="lg" variant="outline" className="border-gray-700 hover:bg-gray-800 text-slate-950">
                 Learn More
               </Button>
             </div>
@@ -86,43 +69,9 @@ const Index = () => {
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            <PricingCard
-              title="Quick Session"
-              price="499"
-              duration="30"
-              description="Perfect for specific questions"
-              features={[
-                "Focused problem solving",
-                "Resume quick review",
-                "Career path guidance",
-                "Interview preparation tips",
-              ]}
-            />
-            <PricingCard
-              title="Standard Session"
-              price="799"
-              duration="60"
-              description="Our most popular option"
-              features={[
-                "In-depth discussion",
-                "Complete resume review",
-                "Personalized career planning",
-                "Mock interview with feedback",
-              ]}
-              isBestSeller
-            />
-            <PricingCard
-              title="Extended Session"
-              price="1299"
-              duration="120"
-              description="For comprehensive guidance"
-              features={[
-                "Deep dive career consultation",
-                "Portfolio & resume overhaul",
-                "Detailed action plan creation",
-                "Full mock interview & strategy",
-              ]}
-            />
+            <PricingCard title="Quick Session" price="499" duration="30" description="Perfect for specific questions" features={["Focused problem solving", "Resume quick review", "Career path guidance", "Interview preparation tips"]} />
+            <PricingCard title="Standard Session" price="799" duration="60" description="Our most popular option" features={["In-depth discussion", "Complete resume review", "Personalized career planning", "Mock interview with feedback"]} isBestSeller />
+            <PricingCard title="Extended Session" price="1299" duration="120" description="For comprehensive guidance" features={["Deep dive career consultation", "Portfolio & resume overhaul", "Detailed action plan creation", "Full mock interview & strategy"]} />
           </div>
         </div>
       </section>
@@ -137,24 +86,9 @@ const Index = () => {
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            <TestimonialCard
-              text="The mentorship I received through CareerDive was instrumental in landing my dream job. My mentor provided invaluable guidance on interview preparation."
-              author="Alex Johnson"
-              role="Software Engineer at Google"
-              image="/lovable-uploads/1f3501c2-a1ee-4e63-a530-92f6a7239696.png"
-            />
-            <TestimonialCard
-              text="After three sessions with my mentor, I completely revamped my resume and approach to interviews. I received multiple offers within a month!"
-              author="Sarah Chen"
-              role="Product Manager at Microsoft"
-              image="/lovable-uploads/fb8ee448-6de9-4cc9-8480-a8a93e463b28.png"
-            />
-            <TestimonialCard
-              text="My mentor helped me navigate the complex field of data science and provided practical advice that no bootcamp or course could offer."
-              author="Michael Rodriguez"
-              role="Data Scientist at Amazon"
-              image="/lovable-uploads/ce0df28a-0874-4701-b1f3-caa528387610.png"
-            />
+            <TestimonialCard text="The mentorship I received through CareerDive was instrumental in landing my dream job. My mentor provided invaluable guidance on interview preparation." author="Alex Johnson" role="Software Engineer at Google" image="/lovable-uploads/1f3501c2-a1ee-4e63-a530-92f6a7239696.png" />
+            <TestimonialCard text="After three sessions with my mentor, I completely revamped my resume and approach to interviews. I received multiple offers within a month!" author="Sarah Chen" role="Product Manager at Microsoft" image="/lovable-uploads/fb8ee448-6de9-4cc9-8480-a8a93e463b28.png" />
+            <TestimonialCard text="My mentor helped me navigate the complex field of data science and provided practical advice that no bootcamp or course could offer." author="Michael Rodriguez" role="Data Scientist at Amazon" image="/lovable-uploads/ce0df28a-0874-4701-b1f3-caa528387610.png" />
           </div>
         </div>
       </section>
@@ -235,8 +169,6 @@ const Index = () => {
           </div>
         </div>
       </footer>
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
