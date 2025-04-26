@@ -34,7 +34,7 @@ const GetStarted = () => {
     Looking for guidance from industry professionals to accelerate my career growth.
   </p>
   <Button
-    onClick={handleStudentSignup}
+    onClick={() => window.location.href = "https://career-dive.netlify.app/"}
     className="w-full bg-[#3B82F6] hover:bg-[#2563EB] text-white"
   >
     Sign Up as a Student <ArrowRight className="ml-2" />
