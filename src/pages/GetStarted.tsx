@@ -21,45 +21,46 @@ const GetStarted = () => {
         </div>
 
         <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-          <Card className="bg-[#12141D] border-0 p-8 flex flex-col items-center text-center hover:transform hover:scale-105 transition-all duration-300">
-            <div className="w-32 h-32 rounded-full bg-[#1A2238] flex items-center justify-center mb-6">
-              <img
-                src="/lovable-uploads/b07db249-ce09-4d60-b4fb-ba869faeb9fc.png"
-                alt="Mentee"
-                className="w-24 h-24 object-contain"
-              />
-            </div>
-            <h2 className="text-2xl font-bold mb-4 text-white">I'm a Mentee</h2>
-            <p className="text-gray-400 mb-8">
-              Looking for guidance from industry professionals to accelerate my career growth
-            </p>
-            <Button
-              onClick={handleStudentSignup}
-              className="w-full bg-[#3B82F6] hover:bg-[#2563EB] text-white"
-            >
-              Sign Up as a Student <ArrowRight className="ml-2" />
-            </Button>
-                        <div className="h-4"/>
+        <Card className="bg-[#12141D] border-0 p-8 flex flex-col items-center text-center hover:transform hover:scale-105 transition-all duration-300">
+  <div className="w-32 h-32 rounded-full bg-[#1A2238] flex items-center justify-center mb-6 overflow-hidden">
+    <img
+      src="https://preview.redd.it/finally-met-johnny-sins-v0-sidxefmycuy91.jpg?width=554&format=pjpg&auto=webp&s=e5b4793957b72e31e214c863d01272a37ebf7503"
+      alt="Mentee"
+      className="w-full h-full object-cover rounded-full"
+    />
+  </div>
+  <h2 className="text-2xl font-bold mb-4 text-white">I'm a Mentee</h2>
+  <p className="text-gray-400 mb-8">
+    Looking for guidance from industry professionals to accelerate my career growth.
+  </p>
+  <Button
+    onClick={handleStudentSignup}
+    className="w-full bg-[#3B82F6] hover:bg-[#2563EB] text-white"
+  >
+    Sign Up as a Student <ArrowRight className="ml-2" />
+  </Button>
+  <div className="h-4" />
 
-            <Button
-              onClick={() => window.location.href = "https://career-dive.netlify.app/student/dashboard"}
-              className="w-full bg-green-600 hover:bg-green-700 text-white"
-            >
-              View Your Dashboard <ArrowRight className="ml-2" />
-            </Button>
-          </Card>
+  <Button
+    onClick={() => window.location.href = "https://career-dive.netlify.app/student/dashboard"}
+    className="w-full bg-green-600 hover:bg-green-700 text-white"
+  >
+    Login to Your Dashboard <ArrowRight className="ml-2" />
+  </Button>
+</Card>
 
-          <Card className="bg-[#12141D] border-0 p-8 flex flex-col items-center text-center">
-            <div className="w-32 h-32 rounded-full bg-[#1A2238] flex items-center justify-center mb-6">
+
+          <Card className="bg-[#12141D] border-0 p-8 flex flex-col items-center text-center transform transition-transform duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/20">
+            <div className="w-32 h-32 rounded-full bg-[#1A2238] flex items-center justify-center mb-6 relative overflow-hidden">
               <img
-                src="/lovable-uploads/b07db249-ce09-4d60-b4fb-ba869faeb9fc.png"
+                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSktspfAGgaDS23h2B_-0THTS395YZA1HOrWQ&s"
                 alt="Mentor"
-                className="w-24 h-24 object-contain"
+                className="w-full h-full object-cover rounded-full"
               />
             </div>
             <h2 className="text-2xl font-bold mb-4 text-white">I'm a Mentor</h2>
             <p className="text-gray-400 mb-8">
-              Ready to share my expertise and guide students on their professional journey
+              Ready to share my expertise and guide students on their professional journey.
             </p>
             <div className="w-full space-y-3">
               <Button
@@ -77,16 +78,10 @@ const GetStarted = () => {
             </div>
           </Card>
 
+
         </div>
 
-        <div className="text-center mt-8">
-          <p className="text-gray-400">
-            Already have an account?{' '}
-            <a href="https://mentor-dashboard.netlify.app/dashboard" className="text-[#3B82F6] hover:underline">
-              Log in
-            </a>
-          </p>
-        </div>
+
 
         <footer className="mt-20 text-gray-400 text-sm">
           <div className="flex justify-between items-center">

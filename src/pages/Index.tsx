@@ -44,7 +44,7 @@ const Index = () => {
             </div>
             {/* Hero Image */}
             <img
-              src="https://images.unsplash.com/photo-1605379399642-870262d3d051?auto=format&fit=crop&w=1200&q=80"
+              src="https://media.istockphoto.com/id/1322139094/photo/multiethnic-colleagues-sitting-at-desk-looking-at-laptop-computer-in-office.jpg?s=612x612&w=0&k=20&c=xrGP_nwtcdaZF8heKJ_FiEqnuqWxv1A7i71YZLXxSaE="
               alt="Career Dive Mentorship"
               className="rounded-xl shadow-2xl mt-16 w-full max-w-3xl hover:scale-105 transition-transform duration-500"
             />
@@ -72,43 +72,52 @@ const Index = () => {
       </section>
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="py-20 bg-[#0D0F17] text-white">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">How CareerDive Works</h2>
-            <p className="text-gray-400 max-w-xl mx-auto">
-              Getting started is simple. Find your mentor and begin your journey in three easy steps.
-            </p>
-          </div>
+      <section id="how-it-works" className="relative py-24 bg-[#0D0F17] text-white overflow-hidden">
+  <div className="container mx-auto px-6 relative z-10">
+    <div className="text-center mb-16">
+      <h2 className="text-4xl md:text-5xl font-extrabold mb-4 leading-tight tracking-tight">
+        How <span className="text-blue-500">CareerDive</span> Works
+      </h2>
+      <p className="text-gray-400 max-w-2xl mx-auto text-lg">
+        Start your journey in three simple, guided steps.
+      </p>
+    </div>
 
-          <div className="relative max-w-3xl mx-auto">
-            <div className="border-l-4 border-blue-500 pl-6 space-y-12">
-              {[
-                {
-                  title: "Create Your Account",
-                  description: "Sign up and complete your profile to help us match you with the right mentors.",
-                },
-                {
-                  title: "Find Your Mentor",
-                  description: "Browse our network of industry professionals and choose the perfect match for your goals.",
-                },
-                {
-                  title: "Book Your Sessions",
-                  description: "Schedule 1:1 video calls sessions at times that work for you and your mentor.",
-                },
-              ].map((step, idx) => (
-                <div key={idx} className="relative">
-                  <div className="absolute -left-8 top-1 text-xl bg-blue-500 text-white w-8 h-8 flex items-center justify-center rounded-full font-bold">
-                    {idx + 1}
-                  </div>
-                  <h3 className="text-2xl font-semibold mb-2">{step.title}</h3>
-                  <p className="text-gray-400">{step.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+    <div className="flex flex-col md:flex-row md:justify-center gap-10 max-w-6xl mx-auto">
+      {[
+        {
+          step: "Step 1",
+          title: "Create Your Account",
+          description: "Sign up and complete your profile to help us match you with the best mentors.",
+          icon: "👤",
+        },
+        {
+          step: "Step 2",
+          title: "Find Your Mentor",
+          description: "Browse through our vetted mentors and choose the right one based on your goals.",
+          icon: "🔍",
+        },
+        {
+          step: "Step 3",
+          title: "Book Your Sessions",
+          description: "Easily schedule 1:1 video calls at times that work for both you and your mentor.",
+          icon: "📅",
+        },
+      ].map((item, idx) => (
+        <div
+          key={idx}
+          className="bg-[#161B29] p-8 rounded-2xl shadow-lg hover:shadow-blue-500/20 transition hover:-translate-y-2 duration-300 w-full md:w-1/3 flex flex-col items-center text-center"
+        >
+          <div className="text-5xl mb-4">{item.icon}</div>
+          <span className="text-sm uppercase tracking-widest text-blue-400 mb-2">{item.step}</span>
+          <h3 className="text-2xl font-bold mb-3">{item.title}</h3>
+          <p className="text-gray-400 text-base">{item.description}</p>
         </div>
-      </section>
+      ))}
+    </div>
+  </div>
+</section>
+
 
 
 
@@ -139,9 +148,9 @@ const Index = () => {
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            <TestimonialCard text="Landing my dream job was made possible with CareerDive's mentorship. Highly recommend it!" author="Alex Johnson" role="Software Engineer, Google" image="/lovable-uploads/1f3501c2-a1ee-4e63-a530-92f6a7239696.png" />
-            <TestimonialCard text="In just three sessions, I completely revamped my resume and got multiple job offers." author="Sarah Chen" role="Product Manager, Microsoft" image="/lovable-uploads/fb8ee448-6de9-4cc9-8480-a8a93e463b28.png" />
-            <TestimonialCard text="My mentor gave me real-world advice that no bootcamp could match. 10/10 experience!" author="Michael Rodriguez" role="Data Scientist, Amazon" image="/lovable-uploads/ce0df28a-0874-4701-b1f3-caa528387610.png" />
+            <TestimonialCard text="Landing my dream job was made possible with CareerDive's mentorship. Highly recommend it!" author="Alex Johnson" role="Software Engineer, Google" image="https://www.crucial.com.au/wp-content/uploads/2014/07/example-person.png" />
+            <TestimonialCard text="In just three sessions, I completely revamped my resume and got multiple job offers." author="Sarah Chen" role="Product Manager, Microsoft" image="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcScxxWUL3K0Vq1Ax9454RSfBkjJGup3RPeyaQ&s" />
+            <TestimonialCard text="My mentor gave me real-world advice that no bootcamp could match. 10/10 experience!" author="Michael Rodriguez" role="Data Scientist, Amazon" image="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ2K6dSK2LTI1l_AT9SOROl9MTBJzUuaNEzWQ&s" />
           </div>
         </div>
       </section>
