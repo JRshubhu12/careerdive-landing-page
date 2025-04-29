@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Navigation } from "@/components/Navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { v4 as uuidv4 } from "uuid";
 
 const ApplyMentor = () => {
   const [formData, setFormData] = useState({
@@ -17,9 +18,12 @@ const ApplyMentor = () => {
     email: "",
     phno: "",
     linkedin_url: "",
-    availability: ""
+    availability: "",
+    profile_pic_url: "",
   });
 
+  const [profilePicFile, setProfilePicFile] = useState<File | null>(null);
+  const [profilePicPreview, setProfilePicPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -29,28 +33,66 @@ const ApplyMentor = () => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === "years_of_experience" ? Number(value) : value
+      [name]: name === "years_of_experience" ? Number(value) : value,
     }));
+  };
+
+  const handleProfilePicChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setProfilePicFile(file);
+      setProfilePicPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const uploadProfilePic = async (file: File) => {
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${uuidv4()}.${fileExt}`;
+    const { data, error } = await supabase.storage
+      .from("profile-pictures")
+      .upload(fileName, file);
+
+    if (error) throw error;
+
+    const { data: publicUrlData } = supabase.storage
+      .from("profile-pictures")
+      .getPublicUrl(fileName);
+
+    return publicUrlData.publicUrl;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    const { data, error } = await supabase.from("mentors").insert([formData]);
+    try {
+      let profilePicUrl = "";
 
-    setLoading(false);
+      if (profilePicFile) {
+        profilePicUrl = await uploadProfilePic(profilePicFile);
+      }
 
-    if (error) {
-      console.error("Error submitting form:", error.message);
-      alert("Failed to submit application.");
-    } else {
-      console.log("Submitted:", data);
-      setSubmitted(true);
-      // Redirect after a small delay (to show success message briefly)
-      setTimeout(() => {
-        window.location.href = "https://mentor-dashboard.netlify.app/dashboard";
-      }, 1500);
+      const { data, error } = await supabase.from("mentors").insert([
+        {
+          ...formData,
+          profile_pic_url: profilePicUrl,
+        },
+      ]);
+
+      if (error) {
+        console.error("Error submitting form:", error.message);
+        alert("Failed to submit application.");
+      } else {
+        setSubmitted(true);
+        setTimeout(() => {
+          window.location.href = "https://mentor-dashboard.netlify.app/dashboard";
+        }, 1500);
+      }
+    } catch (err: any) {
+      console.error("Upload error:", err.message);
+      alert("Failed to upload profile picture.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -83,7 +125,9 @@ const ApplyMentor = () => {
                 { label: "LinkedIn Profile URL", name: "linkedin_url", type: "text" },
               ].map((field, idx) => (
                 <div key={idx}>
-                  <label className="block text-gray-300 mb-2 text-sm font-medium">{field.label}</label>
+                  <label className="block text-gray-300 mb-2 text-sm font-medium">
+                    {field.label}
+                  </label>
                   <Input
                     name={field.name}
                     type={field.type}
@@ -94,6 +138,7 @@ const ApplyMentor = () => {
                   />
                 </div>
               ))}
+
               <div>
                 <label className="block text-gray-300 mb-2 text-sm font-medium">Description</label>
                 <Textarea
@@ -104,14 +149,39 @@ const ApplyMentor = () => {
                   required
                 />
               </div>
+
               <div>
-                <label className="block text-gray-300 mb-2 text-sm font-medium">Availability (Optional)</label>
+                <label className="block text-gray-300 mb-2 text-sm font-medium">
+                  Availability (Optional)
+                </label>
                 <Textarea
                   name="availability"
                   value={formData.availability}
                   onChange={handleChange}
                   className="bg-[#111827] border-gray-700 focus:border-blue-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-gray-300 mb-2 text-sm font-medium">
+                  Profile Picture (Optional)
+                </label>
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleProfilePicChange}
+                  className="bg-[#111827] border-gray-700 focus:border-blue-500"
+                />
+                {profilePicPreview && (
+                  <div className="mt-4 flex flex-col items-center space-y-2">
+                    <img
+                      src={profilePicPreview}
+                      alt="Profile Preview"
+                      className="h-32 w-32 rounded-full object-cover border-2 border-blue-400"
+                    />
+                    <p className="text-sm text-gray-400">Profile picture preview</p>
+                  </div>
+                )}
               </div>
 
               <Button
