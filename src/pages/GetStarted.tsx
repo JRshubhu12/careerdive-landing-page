@@ -1,13 +1,24 @@
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";;
 import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 
 const GetStarted = () => {
   const navigate = useNavigate();
 
   const handleStudentSignup = () => {
     window.open("https://career-dive.netlify.app/", "_blank");
+  };
+
+  const [hasApplied, setHasApplied] = useState(
+    localStorage.getItem("hasAppliedMentor") === "true"
+  );
+
+  const handleApplyMentor = () => {
+    localStorage.setItem("hasAppliedMentor", "true");
+    setHasApplied(true);
+    navigate("/apply-mentor");
   };
 
   return (
@@ -21,33 +32,33 @@ const GetStarted = () => {
         </div>
 
         <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-        <Card className="bg-[#12141D] border-0 p-8 flex flex-col items-center text-center hover:transform hover:scale-105 transition-all duration-300">
-  <div className="w-32 h-32 rounded-full bg-[#1A2238] flex items-center justify-center mb-6 overflow-hidden">
-    <img
-      src="https://preview.redd.it/finally-met-johnny-sins-v0-sidxefmycuy91.jpg?width=554&format=pjpg&auto=webp&s=e5b4793957b72e31e214c863d01272a37ebf7503"
-      alt="Mentee"
-      className="w-full h-full object-cover rounded-full"
-    />
-  </div>
-  <h2 className="text-2xl font-bold mb-4 text-white">I'm a Mentee</h2>
-  <p className="text-gray-400 mb-8">
-    Looking for guidance from industry professionals to accelerate my career growth.
-  </p>
-  <Button
-    onClick={() => window.location.href = "https://career-dive.netlify.app/"}
-    className="w-full bg-[#3B82F6] hover:bg-[#2563EB] text-white"
-  >
-    Sign Up as a Student <ArrowRight className="ml-2" />
-  </Button>
-  <div className="h-4" />
+          <Card className="bg-[#12141D] border-0 p-8 flex flex-col items-center text-center hover:transform hover:scale-105 transition-all duration-300">
+            <div className="w-32 h-32 rounded-full bg-[#1A2238] flex items-center justify-center mb-6 overflow-hidden">
+              <img
+                src="https://preview.redd.it/finally-met-johnny-sins-v0-sidxefmycuy91.jpg?width=554&format=pjpg&auto=webp&s=e5b4793957b72e31e214c863d01272a37ebf7503"
+                alt="Mentee"
+                className="w-full h-full object-cover rounded-full"
+              />
+            </div>
+            <h2 className="text-2xl font-bold mb-4 text-white">I'm a Mentee</h2>
+            <p className="text-gray-400 mb-8">
+              Looking for guidance from industry professionals to accelerate my career growth.
+            </p>
+            <Button
+              onClick={() => window.location.href = "https://career-dive.netlify.app/"}
+              className="w-full bg-[#3B82F6] hover:bg-[#2563EB] text-white"
+            >
+              Sign Up as a Student <ArrowRight className="ml-2" />
+            </Button>
+            <div className="h-4" />
 
-  <Button
-    onClick={() => window.location.href = "https://career-dive.netlify.app/student/dashboard"}
-    className="w-full bg-green-600 hover:bg-green-700 text-white"
-  >
-    Login to Your Dashboard <ArrowRight className="ml-2" />
-  </Button>
-</Card>
+            <Button
+              onClick={() => window.location.href = "https://career-dive.netlify.app/student/dashboard"}
+              className="w-full bg-green-600 hover:bg-green-700 text-white"
+            >
+              Login to Your Dashboard <ArrowRight className="ml-2" />
+            </Button>
+          </Card>
 
 
           <Card className="bg-[#12141D] border-0 p-8 flex flex-col items-center text-center transform transition-transform duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/20">
@@ -63,14 +74,16 @@ const GetStarted = () => {
               Ready to share my expertise and guide students on their professional journey.
             </p>
             <div className="w-full space-y-3">
+              {!hasApplied && (
+                <Button
+                  onClick={handleApplyMentor}
+                  className="w-full bg-[#3B82F6] hover:bg-[#2563EB] text-white"
+                >
+                  Apply as a Mentor <ArrowRight className="ml-2" />
+                </Button>
+              )}
               <Button
-                onClick={() => navigate('/apply-mentor')}
-                className="w-full bg-[#3B82F6] hover:bg-[#2563EB] text-white"
-              >
-                Apply as a Mentor <ArrowRight className="ml-2" />
-              </Button>
-              <Button
-                onClick={() => window.location.href = "https://mentor-dashboard.netlify.app/dashboard"}
+                onClick={() => window.location.href = "https://mentor-dashboard.netlify.app/auth"}
                 className="w-full bg-green-600 hover:bg-green-700 text-white"
               >
                 Login to Your Dashboard <ArrowRight className="ml-2" />
