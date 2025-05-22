@@ -12,7 +12,7 @@ const GetStarted = () => {
   useEffect(() => {
     const hasAppliedMentor = localStorage.getItem("mentor_applied");
     if (hasAppliedMentor === "true") {
-      window.location.href = "https://mentor-dashboard.netlify.app/dashboard";
+      window.location.href = "https://mentor-dashboard.netlify.app/auth";
     }
   }, []);
 
@@ -20,7 +20,7 @@ const GetStarted = () => {
     // Mark as applied in localStorage
     localStorage.setItem("mentor_applied", "true");
     // Redirect to mentor dashboard directly
-    window.location.href = "https://mentor-dashboard.netlify.app/dashboard";
+    window.location.href = "https://mentor-dashboard.netlify.app/auth";
   };
 
   return (
