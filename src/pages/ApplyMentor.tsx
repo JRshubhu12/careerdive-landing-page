@@ -7,6 +7,46 @@ import { Navigation } from "@/components/Navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { v4 as uuidv4 } from "uuid";
 
+// --- Availability Helper Data ---
+type DayOfWeek =
+  | "Monday"
+  | "Tuesday"
+  | "Wednesday"
+  | "Thursday"
+  | "Friday"
+  | "Saturday"
+  | "Sunday";
+
+const daysOfWeek: DayOfWeek[] = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
+
+// 24-hour format time options
+const timeOptions = [
+  "06:00", "07:00", "08:00", "09:00", "10:00", "11:00",
+  "12:00", "13:00", "14:00", "15:00", "16:00", "17:00",
+  "18:00", "19:00", "20:00", "21:00", "22:00"
+];
+
+const defaultWeeklyAvailability = () => {
+  const initial: any = {};
+  daysOfWeek.forEach((day) => {
+    initial[day] = {
+      enabled: false,
+      slots: [],
+      start: "09:00",
+      end: "20:00",
+    };
+  });
+  return initial;
+};
+
 const ApplyMentor = () => {
   const [formData, setFormData] = useState({
     mentors_name: "",
@@ -18,7 +58,7 @@ const ApplyMentor = () => {
     email: "",
     phno: "",
     linkedin_url: "",
-    availability: "",
+    availability: "", // will be replaced with JSON
     profile_pic_url: "",
   });
 
@@ -27,6 +67,60 @@ const ApplyMentor = () => {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  // --- AVAILABILITY STATE ---
+  const [weeklySchedule, setWeeklySchedule] = useState<any>(defaultWeeklyAvailability());
+
+  // --- AVAILABILITY HANDLERS ---
+  const handleToggleDay = (day: DayOfWeek) => {
+    setWeeklySchedule((prev: any) => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        enabled: !prev[day].enabled,
+      },
+    }));
+  };
+
+  const handleTimeChange = (
+    day: DayOfWeek,
+    type: "start" | "end",
+    value: string
+  ) => {
+    setWeeklySchedule((prev: any) => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        [type]: value,
+      },
+    }));
+  };
+
+  const handleAddTimeSlot = (day: DayOfWeek) => {
+    setWeeklySchedule((prev: any) => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        slots: [
+          ...prev[day].slots,
+          { start: prev[day].start, end: prev[day].end },
+        ],
+        enabled: true,
+      },
+    }));
+  };
+
+  const handleRemoveSlot = (day: DayOfWeek, idx: number) => {
+    setWeeklySchedule((prev: any) => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        slots: prev[day].slots.filter((_: any, i: number) => i !== idx),
+        enabled: prev[day].slots.length > 1 ? true : false,
+      },
+    }));
+  };
+
+  // --- FORM LOGIC ---
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -72,10 +166,16 @@ const ApplyMentor = () => {
         profilePicUrl = await uploadProfilePic(profilePicFile);
       }
 
+      // Serialize availability for DB
+      const availability = JSON.stringify({
+        weeklySchedule,
+      });
+
       const { data, error } = await supabase.from("mentors").insert([
         {
           ...formData,
           profile_pic_url: profilePicUrl,
+          availability,
         },
       ]);
 
@@ -96,6 +196,7 @@ const ApplyMentor = () => {
     }
   };
 
+  // --- UI ---
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#0A0A0B] to-[#111827] text-white">
       <Navigation />
@@ -150,16 +251,131 @@ const ApplyMentor = () => {
                 />
               </div>
 
+              {/* AVAILABILITY SECTION */}
               <div>
                 <label className="block text-gray-300 mb-2 text-sm font-medium">
-                  Availability (Optional)
+                  Availability <span className="text-gray-400">(Select days and time slots in 24hr format)</span>
                 </label>
-                <Textarea
-                  name="availability"
-                  value={formData.availability}
-                  onChange={handleChange}
-                  className="bg-[#111827] border-gray-700 focus:border-blue-500"
-                />
+                <div className="rounded-xl bg-[#181D25] p-4 mb-2">
+                  {daysOfWeek.map((day) => (
+                    <div
+                      key={day}
+                      className="flex items-center gap-4 border-b border-gray-700 last:border-b-0 py-2"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={weeklySchedule[day].enabled}
+                        onChange={() => handleToggleDay(day)}
+                        className="h-4 w-4 accent-blue-500"
+                        id={day}
+                      />
+                      <label htmlFor={day} className="w-28 font-medium text-gray-200">
+                        {day}
+                      </label>
+                      {weeklySchedule[day].enabled ? (
+                        <>
+                          <div className="flex flex-col gap-1 flex-1">
+                            {weeklySchedule[day].slots.map(
+                              (slot: { start: string; end: string }, idx: number) => (
+                                <div key={idx} className="flex items-center gap-2">
+                                  <select
+                                    value={slot.start}
+                                    onChange={(e) => {
+                                      const newSlots = [...weeklySchedule[day].slots];
+                                      newSlots[idx].start = e.target.value;
+                                      setWeeklySchedule((prev: any) => ({
+                                        ...prev,
+                                        [day]: {
+                                          ...prev[day],
+                                          slots: newSlots,
+                                        },
+                                      }));
+                                    }}
+                                    className="border rounded p-1 bg-[#111827] text-white"
+                                  >
+                                    {timeOptions.map((time) => (
+                                      <option key={time} value={time}>
+                                        {time}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <span className="text-white">-</span>
+                                  <select
+                                    value={slot.end}
+                                    onChange={(e) => {
+                                      const newSlots = [...weeklySchedule[day].slots];
+                                      newSlots[idx].end = e.target.value;
+                                      setWeeklySchedule((prev: any) => ({
+                                        ...prev,
+                                        [day]: {
+                                          ...prev[day],
+                                          slots: newSlots,
+                                        },
+                                      }));
+                                    }}
+                                    className="border rounded p-1 bg-[#111827] text-white"
+                                  >
+                                    {timeOptions.map((time) => (
+                                      <option key={time} value={time}>
+                                        {time}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    type="button"
+                                    className="ml-1 text-gray-400 hover:text-red-400"
+                                    onClick={() => handleRemoveSlot(day, idx)}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              )
+                            )}
+                            <div className="flex items-center gap-2 mt-1">
+                              <select
+                                value={weeklySchedule[day].start}
+                                onChange={(e) =>
+                                  handleTimeChange(day, "start", e.target.value)
+                                }
+                                className="border rounded p-1 bg-[#111827] text-white"
+                              >
+                                {timeOptions.map((time) => (
+                                  <option key={time} value={time}>
+                                    {time}
+                                  </option>
+                                ))}
+                              </select>
+                              <span className="text-white">-</span>
+                              <select
+                                value={weeklySchedule[day].end}
+                                onChange={(e) =>
+                                  handleTimeChange(day, "end", e.target.value)
+                                }
+                                className="border rounded p-1 bg-[#111827] text-white"
+                              >
+                                {timeOptions.map((time) => (
+                                  <option key={time} value={time}>
+                                    {time}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                className="ml-1 px-2 text-black bg-gray-200 hover:bg-blue-400 hover:text-white rounded"
+                                onClick={() => handleAddTimeSlot(day)}
+                                title="Add time slot"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-gray-400">Unavailable</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div>
