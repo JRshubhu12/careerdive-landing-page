@@ -28,11 +28,17 @@ const daysOfWeek: DayOfWeek[] = [
 ];
 
 // 24-hour format time options
-const timeOptions = [
-  "06:00", "07:00", "08:00", "09:00", "10:00", "11:00",
-  "12:00", "13:00", "14:00", "15:00", "16:00", "17:00",
-  "18:00", "19:00", "20:00", "21:00", "22:00"
-];
+function getTimeOptions() {
+  const options: string[] = [];
+  for (let hour = 6; hour <= 22; hour++) {
+    options.push(
+      `${hour.toString().padStart(2, "0")}:00`,
+      hour < 22 ? `${hour.toString().padStart(2, "0")}:30` : undefined
+    );
+  }
+  return options.filter(Boolean) as string[];
+}
+const timeOptions = getTimeOptions();
 
 const defaultWeeklyAvailability = () => {
   const initial: any = {};
@@ -41,42 +47,42 @@ const defaultWeeklyAvailability = () => {
       enabled: false,
       slots: [],
       start: "09:00",
-      end: "20:00",
+      end: "10:00",
     };
   });
   return initial;
 };
 
-// --- Modern Time Picker ---
+// --- Modern Time Picker (as in slots page) ---
 function ModernTimePicker({
   value,
   onChange,
   label,
   options = timeOptions,
+  disabled = false,
 }: {
   value: string;
   onChange: (v: string) => void;
   label?: string;
   options?: string[];
+  disabled?: boolean;
 }) {
   return (
-    <div className="flex flex-col items-start gap-1">
+    <div className="flex flex-col items-start gap-1 min-w-[80px] flex-1">
       {label && <span className="text-xs text-[#3232eb] font-medium">{label}</span>}
-      <div className="relative w-[92px]">
+      <div className="relative w-full">
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="rounded-lg border-2 border-[#3232eb] bg-white text-[#211e6a] px-3 py-1.5 font-mono shadow-md focus:ring-2 focus:ring-[#3232eb] focus:border-[#3232eb] w-full pr-7 transition-all duration-150 appearance-none"
-          style={{
-            paddingRight: "2.2rem",
-          }}
+          className={`rounded-lg border-2 border-[#3232eb] bg-white text-[#211e6a] px-3 py-1 font-mono shadow-md focus:ring-2 focus:ring-[#3232eb] focus:border-[#3232eb] w-full transition-all duration-150 appearance-none ${disabled ? "opacity-60 pointer-events-none" : ""}`}
+          disabled={disabled}
         >
           {options.map((t) => (
             <option key={t} value={t}>{t}</option>
           ))}
         </select>
         <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
-          <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
+          <svg width="18" height="18" fill="none" viewBox="0 0 20 20">
             <path d="M6 8l4 4 4-4" stroke="#3232eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </span>
@@ -85,16 +91,17 @@ function ModernTimePicker({
   );
 }
 
-function ModernAddSlotButton({ onClick }: { onClick: () => void }) {
+function ModernAddSlotButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
   return (
     <button
       type="button"
-      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#3232eb] to-[#211e6a] text-white font-semibold shadow-md hover:scale-105 active:scale-100 transition-transform duration-150"
+      className={`flex items-center justify-center rounded-full bg-[#3232eb] hover:bg-[#211e6a] text-white font-bold shadow-lg border-2 border-[#211e6a] transition-all duration-150 focus:ring-2 focus:ring-[#3232eb] focus:outline-none w-10 h-10 min-w-[40px] min-h-[40px] ${disabled ? "opacity-50 pointer-events-none" : ""}`}
       onClick={onClick}
-      title="Add time slot"
+      title="Add Slot"
+      disabled={disabled}
+      style={{boxShadow: "0 2px 8px #3232eb33"}}
     >
       +
-      Add Slot
     </button>
   );
 }
@@ -103,7 +110,7 @@ function ModernRemoveSlotButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       type="button"
-      className="ml-1 text-white bg-gradient-to-r from-[#ff5f6d] to-[#ffc371] px-2 py-1 rounded-full shadow hover:scale-110 active:scale-100 transition"
+      className="ml-1 px-2 py-1 rounded-full bg-red-100 text-red-700 hover:bg-red-200 transition"
       onClick={onClick}
       title="Remove slot"
     >
@@ -160,14 +167,40 @@ const ApplyMentor = () => {
     }));
   };
 
+  const slotExists = (day: DayOfWeek, start: string, end: string) => {
+    return weeklySchedule[day].slots.some(
+      (slot: any) => slot.start === start && slot.end === end
+    );
+  };
+
+  const isOverlappingSlot = (day: DayOfWeek, newStart: string, newEnd: string): boolean => {
+    function toMinutes(t: string) {
+      const [h, m] = t.split(":").map(Number);
+      return h * 60 + m;
+    }
+    const newStartMin = toMinutes(newStart);
+    const newEndMin = toMinutes(newEnd);
+    return weeklySchedule[day].slots.some((slot: any) => {
+      const slotStart = toMinutes(slot.start);
+      const slotEnd = toMinutes(slot.end);
+      return newStartMin < slotEnd && slotStart < newEndMin;
+    });
+  };
+
   const handleAddTimeSlot = (day: DayOfWeek) => {
+    const start = weeklySchedule[day].start;
+    const end = weeklySchedule[day].end;
+    if (
+      slotExists(day, start, end) ||
+      isOverlappingSlot(day, start, end)
+    ) return;
     setWeeklySchedule((prev: any) => ({
       ...prev,
       [day]: {
         ...prev[day],
         slots: [
           ...prev[day].slots,
-          { start: prev[day].start, end: prev[day].end },
+          { start, end },
         ],
         enabled: true,
       },
@@ -207,7 +240,7 @@ const ApplyMentor = () => {
   const uploadProfilePic = async (file: File) => {
     const fileExt = file.name.split(".").pop();
     const fileName = `${uuidv4()}.${fileExt}`;
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from("profile-pictures")
       .upload(fileName, file);
 
@@ -236,7 +269,7 @@ const ApplyMentor = () => {
         weeklySchedule,
       });
 
-      const { data, error } = await supabase.from("mentors").insert([
+      const { error } = await supabase.from("mentors").insert([
         {
           ...formData,
           profile_pic_url: profilePicUrl,
@@ -319,85 +352,114 @@ const ApplyMentor = () => {
                 />
               </div>
 
-              {/* AVAILABILITY SECTION */}
+              {/* AVAILABILITY SECTION - MODERN SLOTSPAGE DESIGN */}
               <div className="rounded-xl bg-white border-2 border-[#53a0fd] shadow px-4 py-3">
                 <label className="block text-[#23235c] mb-2 text-sm font-semibold tracking-wide">
                   Availability <span className="text-gray-500 font-normal">(Select days and time slots)</span>
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {daysOfWeek.map((day) => (
-                    <div
-                      key={day}
-                      className={`rounded-2xl shadow-md p-5 bg-gradient-to-tr from-[#eaf0ff] to-[#c8d6ff] border-2 transition
-                        ${weeklySchedule[day].enabled ? "border-[#3232eb]" : "border-gray-300 opacity-80"}
-                      `}
-                    >
-                      <div className="flex items-center mb-2">
-                        <input
-                          type="checkbox"
-                          checked={weeklySchedule[day].enabled}
-                          onChange={() => handleToggleDay(day)}
-                          className="h-5 w-5 accent-[#3232eb] rounded-full outline-none border-2 border-[#3232eb] mr-2"
-                          id={day}
-                        />
-                        <label
-                          htmlFor={day}
-                          className={`text-base font-semibold tracking-wide ${weeklySchedule[day].enabled ? "text-[#211e6a]" : "text-gray-400"}`}
-                        >
-                          {day}
-                        </label>
-                      </div>
-                      {weeklySchedule[day].enabled ? (
-                        <>
-                          <div className="flex flex-col gap-2">
-                            {weeklySchedule[day].slots.length === 0 && (
-                              <div className="text-xs text-gray-400 italic">No slots added</div>
-                            )}
-                            {weeklySchedule[day].slots.map((slot: { start: string; end: string }, idx: number) => (
-                              <div
-                                key={idx}
-                                className="flex items-center gap-2 bg-white border border-[#53a0fd] rounded-xl px-3 py-2 shadow"
-                              >
+                  {daysOfWeek.map((day) => {
+                    const isDuplicate = slotExists(
+                      day,
+                      weeklySchedule[day].start,
+                      weeklySchedule[day].end
+                    );
+                    const overlap = isOverlappingSlot(
+                      day,
+                      weeklySchedule[day].start,
+                      weeklySchedule[day].end
+                    );
+                    return (
+                      <div
+                        key={day}
+                        className={`rounded-2xl shadow-md p-4 bg-gradient-to-tr from-white via-[#f4f7ff] to-[#eaf0ff] border-2 transition
+                          ${weeklySchedule[day].enabled ? "border-[#3232eb]" : "border-gray-200 opacity-75"}
+                        `}
+                      >
+                        <div>
+                          <div className="flex items-center mb-2">
+                            <input
+                              type="checkbox"
+                              checked={weeklySchedule[day].enabled}
+                              onChange={() => handleToggleDay(day)}
+                              className="h-5 w-5 accent-[#3232eb] rounded-full outline-none border-2 border-[#3232eb] mr-2"
+                              id={day}
+                            />
+                            <label
+                              htmlFor={day}
+                              className={`text-base font-semibold tracking-wide ${weeklySchedule[day].enabled ? "text-[#211e6a]" : "text-gray-400"}`}
+                            >
+                              {day}
+                            </label>
+                          </div>
+                          {weeklySchedule[day].enabled ? (
+                            <div className="flex flex-col gap-2">
+                              {weeklySchedule[day].slots.length === 0 && (
+                                <div className="text-xs text-gray-400 italic">No slots added</div>
+                              )}
+                              {weeklySchedule[day].slots.map((slot: { start: string; end: string }, idx: number) => (
+                                <div
+                                  key={idx}
+                                  className="flex items-center gap-2 bg-gradient-to-r from-[#eaf0ff] to-[#c8d6ff] rounded-xl px-2 py-2 shadow"
+                                >
+                                  <ModernTimePicker
+                                    value={slot.start}
+                                    onChange={(v) => {
+                                      const newSlots = [...weeklySchedule[day].slots];
+                                      newSlots[idx].start = v;
+                                      setWeeklySchedule((prev: any) => ({
+                                        ...prev,
+                                        [day]: { ...prev[day], slots: newSlots },
+                                      }));
+                                    }}
+                                  />
+                                  <span className="mx-1 text-[#3232eb] font-bold">-</span>
+                                  <ModernTimePicker
+                                    value={slot.end}
+                                    onChange={(v) => {
+                                      const newSlots = [...weeklySchedule[day].slots];
+                                      newSlots[idx].end = v;
+                                      setWeeklySchedule((prev: any) => ({
+                                        ...prev,
+                                        [day]: { ...prev[day], slots: newSlots },
+                                      }));
+                                    }}
+                                  />
+                                  <ModernRemoveSlotButton
+                                    onClick={() => handleRemoveSlot(day, idx)}
+                                  />
+                                </div>
+                              ))}
+                              <div className="flex flex-row flex-wrap items-end gap-2 mt-2">
                                 <ModernTimePicker
-                                  value={slot.start}
-                                  onChange={(v) => {
-                                    const newSlots = [...weeklySchedule[day].slots];
-                                    newSlots[idx].start = v;
-                                    setWeeklySchedule((prev: any) => ({
-                                      ...prev,
-                                      [day]: { ...prev[day], slots: newSlots },
-                                    }));
-                                  }}
-                                  label="Start"
+                                  value={weeklySchedule[day].start}
+                                  onChange={(v) => handleTimeChange(day, "start", v)}
                                 />
                                 <span className="mx-1 text-[#3232eb] font-bold">-</span>
                                 <ModernTimePicker
-                                  value={slot.end}
-                                  onChange={(v) => {
-                                    const newSlots = [...weeklySchedule[day].slots];
-                                    newSlots[idx].end = v;
-                                    setWeeklySchedule((prev: any) => ({
-                                      ...prev,
-                                      [day]: { ...prev[day], slots: newSlots },
-                                    }));
-                                  }}
-                                  label="End"
+                                  value={weeklySchedule[day].end}
+                                  onChange={(v) => handleTimeChange(day, "end", v)}
                                 />
-                                <ModernRemoveSlotButton
-                                  onClick={() => handleRemoveSlot(day, idx)}
+                                <ModernAddSlotButton
+                                  onClick={() => handleAddTimeSlot(day)}
+                                  disabled={isDuplicate || overlap}
                                 />
                               </div>
-                            ))}
-                            <div className="mt-2">
-                              <ModernAddSlotButton onClick={() => handleAddTimeSlot(day)} />
+                              {(overlap || isDuplicate) && (
+                                <div className="text-xs text-red-600 mt-1 font-medium max-w-full whitespace-normal break-words">
+                                  {overlap
+                                    ? "Your slot is already booked or overlaps with another slot."
+                                    : "This exact slot already exists."}
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="text-gray-400 text-sm mt-2">Unavailable</div>
-                      )}
-                    </div>
-                  ))}
+                          ) : (
+                            <div className="text-gray-400 text-sm mt-2">Unavailable</div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
