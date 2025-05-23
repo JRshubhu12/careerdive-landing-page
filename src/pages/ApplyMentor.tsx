@@ -47,6 +47,71 @@ const defaultWeeklyAvailability = () => {
   return initial;
 };
 
+// --- Modern Time Picker ---
+function ModernTimePicker({
+  value,
+  onChange,
+  label,
+  options = timeOptions,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  label?: string;
+  options?: string[];
+}) {
+  return (
+    <div className="flex flex-col items-start gap-1">
+      {label && <span className="text-xs text-[#3232eb] font-medium">{label}</span>}
+      <div className="relative w-[92px]">
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="rounded-lg border-2 border-[#3232eb] bg-white text-[#211e6a] px-3 py-1.5 font-mono shadow-md focus:ring-2 focus:ring-[#3232eb] focus:border-[#3232eb] w-full pr-7 transition-all duration-150 appearance-none"
+          style={{
+            paddingRight: "2.2rem",
+          }}
+        >
+          {options.map((t) => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
+        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
+          <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
+            <path d="M6 8l4 4 4-4" stroke="#3232eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ModernAddSlotButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#3232eb] to-[#211e6a] text-white font-semibold shadow-md hover:scale-105 active:scale-100 transition-transform duration-150"
+      onClick={onClick}
+      title="Add time slot"
+    >
+      +
+      Add Slot
+    </button>
+  );
+}
+
+function ModernRemoveSlotButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className="ml-1 text-white bg-gradient-to-r from-[#ff5f6d] to-[#ffc371] px-2 py-1 rounded-full shadow hover:scale-110 active:scale-100 transition"
+      onClick={onClick}
+      title="Remove slot"
+    >
+      ×
+    </button>
+  );
+}
+
 const ApplyMentor = () => {
   const [formData, setFormData] = useState({
     mentors_name: "",
@@ -58,7 +123,7 @@ const ApplyMentor = () => {
     email: "",
     phno: "",
     linkedin_url: "",
-    availability: "", // will be replaced with JSON
+    availability: "",
     profile_pic_url: "",
   });
 
@@ -208,7 +273,7 @@ const ApplyMentor = () => {
           Share your experience, guide the next generation, and make an impact through CareerDive.
         </p>
 
-        <div className="w-full max-w-2xl bg-[#1F2937] rounded-3xl shadow-2xl p-10 backdrop-blur-md">
+        <div className="w-full max-w-2xl bg-gradient-to-tr from-[#23235c] via-[#25277d] to-[#3232eb] rounded-3xl shadow-2xl p-10 backdrop-blur-md border-2 border-[#53a0fd]">
           {submitted ? (
             <div className="text-green-400 text-center text-2xl font-semibold">
               🎉 Application submitted successfully!
@@ -225,8 +290,11 @@ const ApplyMentor = () => {
                 { label: "Phone Number", name: "phno", type: "text" },
                 { label: "LinkedIn Profile URL", name: "linkedin_url", type: "text" },
               ].map((field, idx) => (
-                <div key={idx}>
-                  <label className="block text-gray-300 mb-2 text-sm font-medium">
+                <div
+                  key={idx}
+                  className="rounded-xl bg-white border-2 border-[#53a0fd] shadow px-4 py-3 flex flex-col"
+                >
+                  <label className="text-[#23235c] mb-1 text-sm font-semibold tracking-wide">
                     {field.label}
                   </label>
                   <Input
@@ -234,159 +302,114 @@ const ApplyMentor = () => {
                     type={field.type}
                     value={(formData as any)[field.name]}
                     onChange={handleChange}
-                    className="bg-[#111827] border-gray-700 focus:border-blue-500"
+                    className="bg-white border-[#53a0fd] focus:border-blue-500 text-[#23235c] placeholder-gray-500"
                     required
                   />
                 </div>
               ))}
 
-              <div>
-                <label className="block text-gray-300 mb-2 text-sm font-medium">Description</label>
+              <div className="rounded-xl bg-white border-2 border-[#53a0fd] shadow px-4 py-3 flex flex-col">
+                <label className="text-[#23235c] mb-1 text-sm font-semibold tracking-wide">Description</label>
                 <Textarea
                   name="description"
                   value={formData.description}
                   onChange={handleChange}
-                  className="bg-[#111827] border-gray-700 focus:border-blue-500"
+                  className="bg-white border-[#53a0fd] focus:border-blue-500 text-[#23235c] placeholder-gray-500"
                   required
                 />
               </div>
 
               {/* AVAILABILITY SECTION */}
-              <div>
-                <label className="block text-gray-300 mb-2 text-sm font-medium">
-                  Availability <span className="text-gray-400">(Select days and time slots in 24hr format)</span>
+              <div className="rounded-xl bg-white border-2 border-[#53a0fd] shadow px-4 py-3">
+                <label className="block text-[#23235c] mb-2 text-sm font-semibold tracking-wide">
+                  Availability <span className="text-gray-500 font-normal">(Select days and time slots)</span>
                 </label>
-                <div className="rounded-xl bg-[#181D25] p-4 mb-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {daysOfWeek.map((day) => (
                     <div
                       key={day}
-                      className="flex items-center gap-4 border-b border-gray-700 last:border-b-0 py-2"
+                      className={`rounded-2xl shadow-md p-5 bg-gradient-to-tr from-[#eaf0ff] to-[#c8d6ff] border-2 transition
+                        ${weeklySchedule[day].enabled ? "border-[#3232eb]" : "border-gray-300 opacity-80"}
+                      `}
                     >
-                      <input
-                        type="checkbox"
-                        checked={weeklySchedule[day].enabled}
-                        onChange={() => handleToggleDay(day)}
-                        className="h-4 w-4 accent-blue-500"
-                        id={day}
-                      />
-                      <label htmlFor={day} className="w-28 font-medium text-gray-200">
-                        {day}
-                      </label>
+                      <div className="flex items-center mb-2">
+                        <input
+                          type="checkbox"
+                          checked={weeklySchedule[day].enabled}
+                          onChange={() => handleToggleDay(day)}
+                          className="h-5 w-5 accent-[#3232eb] rounded-full outline-none border-2 border-[#3232eb] mr-2"
+                          id={day}
+                        />
+                        <label
+                          htmlFor={day}
+                          className={`text-base font-semibold tracking-wide ${weeklySchedule[day].enabled ? "text-[#211e6a]" : "text-gray-400"}`}
+                        >
+                          {day}
+                        </label>
+                      </div>
                       {weeklySchedule[day].enabled ? (
                         <>
-                          <div className="flex flex-col gap-1 flex-1">
-                            {weeklySchedule[day].slots.map(
-                              (slot: { start: string; end: string }, idx: number) => (
-                                <div key={idx} className="flex items-center gap-2">
-                                  <select
-                                    value={slot.start}
-                                    onChange={(e) => {
-                                      const newSlots = [...weeklySchedule[day].slots];
-                                      newSlots[idx].start = e.target.value;
-                                      setWeeklySchedule((prev: any) => ({
-                                        ...prev,
-                                        [day]: {
-                                          ...prev[day],
-                                          slots: newSlots,
-                                        },
-                                      }));
-                                    }}
-                                    className="border rounded p-1 bg-[#111827] text-white"
-                                  >
-                                    {timeOptions.map((time) => (
-                                      <option key={time} value={time}>
-                                        {time}
-                                      </option>
-                                    ))}
-                                  </select>
-                                  <span className="text-white">-</span>
-                                  <select
-                                    value={slot.end}
-                                    onChange={(e) => {
-                                      const newSlots = [...weeklySchedule[day].slots];
-                                      newSlots[idx].end = e.target.value;
-                                      setWeeklySchedule((prev: any) => ({
-                                        ...prev,
-                                        [day]: {
-                                          ...prev[day],
-                                          slots: newSlots,
-                                        },
-                                      }));
-                                    }}
-                                    className="border rounded p-1 bg-[#111827] text-white"
-                                  >
-                                    {timeOptions.map((time) => (
-                                      <option key={time} value={time}>
-                                        {time}
-                                      </option>
-                                    ))}
-                                  </select>
-                                  <button
-                                    type="button"
-                                    className="ml-1 text-gray-400 hover:text-red-400"
-                                    onClick={() => handleRemoveSlot(day, idx)}
-                                  >
-                                    ×
-                                  </button>
-                                </div>
-                              )
+                          <div className="flex flex-col gap-2">
+                            {weeklySchedule[day].slots.length === 0 && (
+                              <div className="text-xs text-gray-400 italic">No slots added</div>
                             )}
-                            <div className="flex items-center gap-2 mt-1">
-                              <select
-                                value={weeklySchedule[day].start}
-                                onChange={(e) =>
-                                  handleTimeChange(day, "start", e.target.value)
-                                }
-                                className="border rounded p-1 bg-[#111827] text-white"
+                            {weeklySchedule[day].slots.map((slot: { start: string; end: string }, idx: number) => (
+                              <div
+                                key={idx}
+                                className="flex items-center gap-2 bg-white border border-[#53a0fd] rounded-xl px-3 py-2 shadow"
                               >
-                                {timeOptions.map((time) => (
-                                  <option key={time} value={time}>
-                                    {time}
-                                  </option>
-                                ))}
-                              </select>
-                              <span className="text-white">-</span>
-                              <select
-                                value={weeklySchedule[day].end}
-                                onChange={(e) =>
-                                  handleTimeChange(day, "end", e.target.value)
-                                }
-                                className="border rounded p-1 bg-[#111827] text-white"
-                              >
-                                {timeOptions.map((time) => (
-                                  <option key={time} value={time}>
-                                    {time}
-                                  </option>
-                                ))}
-                              </select>
-                              <button
-                                type="button"
-                                className="ml-1 px-2 text-black bg-gray-200 hover:bg-blue-400 hover:text-white rounded"
-                                onClick={() => handleAddTimeSlot(day)}
-                                title="Add time slot"
-                              >
-                                +
-                              </button>
+                                <ModernTimePicker
+                                  value={slot.start}
+                                  onChange={(v) => {
+                                    const newSlots = [...weeklySchedule[day].slots];
+                                    newSlots[idx].start = v;
+                                    setWeeklySchedule((prev: any) => ({
+                                      ...prev,
+                                      [day]: { ...prev[day], slots: newSlots },
+                                    }));
+                                  }}
+                                  label="Start"
+                                />
+                                <span className="mx-1 text-[#3232eb] font-bold">-</span>
+                                <ModernTimePicker
+                                  value={slot.end}
+                                  onChange={(v) => {
+                                    const newSlots = [...weeklySchedule[day].slots];
+                                    newSlots[idx].end = v;
+                                    setWeeklySchedule((prev: any) => ({
+                                      ...prev,
+                                      [day]: { ...prev[day], slots: newSlots },
+                                    }));
+                                  }}
+                                  label="End"
+                                />
+                                <ModernRemoveSlotButton
+                                  onClick={() => handleRemoveSlot(day, idx)}
+                                />
+                              </div>
+                            ))}
+                            <div className="mt-2">
+                              <ModernAddSlotButton onClick={() => handleAddTimeSlot(day)} />
                             </div>
                           </div>
                         </>
                       ) : (
-                        <div className="text-gray-400">Unavailable</div>
+                        <div className="text-gray-400 text-sm mt-2">Unavailable</div>
                       )}
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div>
-                <label className="block text-gray-300 mb-2 text-sm font-medium">
+              <div className="rounded-xl bg-white border-2 border-[#53a0fd] shadow px-4 py-3 flex flex-col">
+                <label className="text-[#23235c] mb-1 text-sm font-semibold tracking-wide">
                   Profile Picture (Optional)
                 </label>
                 <Input
                   type="file"
                   accept="image/*"
                   onChange={handleProfilePicChange}
-                  className="bg-[#111827] border-gray-700 focus:border-blue-500"
+                  className="bg-white border-none focus:ring-0 text-[#23235c] placeholder-gray-500"
                 />
                 {profilePicPreview && (
                   <div className="mt-4 flex flex-col items-center space-y-2">
@@ -402,7 +425,7 @@ const ApplyMentor = () => {
 
               <Button
                 type="submit"
-                className="w-full bg-gradient-to-r from-blue-500 to-green-400 hover:from-blue-600 hover:to-green-500 font-semibold text-lg py-6 rounded-xl"
+                className="w-full bg-gradient-to-r from-blue-500 to-green-400 hover:from-blue-600 hover:to-green-500 font-semibold text-lg py-6 rounded-xl mt-4"
                 disabled={loading}
               >
                 {loading ? "Submitting..." : "Submit Application"}
