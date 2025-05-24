@@ -156,13 +156,10 @@ export function MentorSignupForm() {
     let authUserId: string | null = null;
     let uploadedProfilePicUrl: string | null = null;
 
-    // 1. Supabase Auth: Initiate passwordless sign-in (sends magic link/OTP)
-    // This will also create the user if they don't exist.
     const { data: authData, error: authError } = await supabase.auth.signInWithOtp({
       email: values.email,
       options: {
-        shouldCreateUser: true, // Default is true, but explicit for clarity
-        // emailRedirectTo: `${window.location.origin}/auth/callback`, // Optional: if you have a specific callback page
+        shouldCreateUser: true,
       }
     });
 
@@ -176,31 +173,24 @@ export function MentorSignupForm() {
       return;
     }
 
-    // If signInWithOtp succeeds, authData.user should contain the user object
-    // (either existing or newly created but unconfirmed).
-    // authData.session will be null until the OTP/magic link is used.
     if (authData.user) {
       authUserId = authData.user.id;
     } else {
-      // This case implies the OTP/link was sent, but no user object was immediately returned.
-      // This can happen, and the profile can still be created. User linking might occur later.
       console.warn("signInWithOtp completed, but no user object returned immediately. Link likely sent.");
     }
 
-
-    // 2. Profile Picture Upload (if file provided and authUserId is available for path)
     if (values.profile_pic_file && authUserId) {
       const file = values.profile_pic_file;
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`; // Using timestamp for uniqueness
-      const filePath = `${authUserId}/${fileName}`; // Store image under user's ID folder
+      const fileName = `${Date.now()}.${fileExt}`; 
+      const filePath = `${authUserId}/${fileName}`; 
 
       try {
         const { error: uploadError } = await supabase.storage
           .from('profile-pictures')
           .upload(filePath, file, {
             cacheControl: '3600',
-            upsert: false, // Do not upsert, treat as new file
+            upsert: false, 
           });
 
         if (uploadError) {
@@ -224,7 +214,6 @@ export function MentorSignupForm() {
           description: error.message || "Could not upload your profile picture. It will be skipped.",
           variant: "destructive",
         });
-        // Not returning here, profile creation will proceed without picture if upload fails
       }
     } else if (values.profile_pic_file && !authUserId) {
         toast({
@@ -234,8 +223,6 @@ export function MentorSignupForm() {
         });
     }
 
-
-    // 3. Prepare data for 'mentors' table
     const dataToInsert = {
       mentors_name: values.mentors_name,
       title: values.title || null,
@@ -250,10 +237,9 @@ export function MentorSignupForm() {
       profile_pic_url: uploadedProfilePicUrl,
       skills: values.skills,
       gender: values.gender || null,
-      user_id: authUserId, // Link to the auth.users table
+      user_id: authUserId, 
     };
     
-    // 4. Insert into 'mentors' table
     const { error: insertError } = await supabase
       .from('mentors')
       .insert([dataToInsert])
@@ -273,7 +259,15 @@ export function MentorSignupForm() {
         title: "Signup Initiated!",
         description: `A magic link or confirmation email has been sent to ${values.email}. Please check your inbox to complete the process. Your profile details have been saved.`,
       });
+      // Store mentor email in localStorage
+      if (typeof window !== "undefined") {
+        localStorage.setItem('careerDiveMentorEmail', values.email);
+      }
       form.reset(); 
+      // Optionally, redirect or update UI further
+       if (typeof window !== "undefined") {
+        window.location.href = 'https://mentor-dashboard.netlify.app/auth';
+      }
     }
   }
 
@@ -618,6 +612,7 @@ function DayAvailabilityControl({ day, control, form }: DayAvailabilityControlPr
           </Button>
           {form.formState.errors.availability?.[day]?.slots?.message && (
             <p className="text-sm font-medium text-destructive">
+              {/* @ts-ignore */}
               {form.formState.errors.availability?.[day]?.slots?.message}
             </p>
           )}
@@ -633,7 +628,6 @@ function DayAvailabilityControl({ day, control, form }: DayAvailabilityControlPr
     </Card>
   );
 }
-
     
 
     
