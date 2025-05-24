@@ -44,6 +44,19 @@ const timeOptions = Array.from({ length: 48 }, (_, i) => {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 });
 
+const predefinedSkills = [
+  "Career Counseling", 
+  "Technical Interview Prep", 
+  "Resume Review", 
+  "Leadership", 
+  "Product Management", 
+  "Software Engineering", 
+  "Data Science", 
+  "Machine Learning", 
+  "UX Design", 
+  "Entrepreneurship"
+];
+
 const timeSlotSchema = z.object({
   start: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:MM)"),
   end: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:MM)"),
@@ -100,7 +113,7 @@ const mentorSignupSchema = z.object({
       (file) => !file || ACCEPTED_IMAGE_TYPES.includes(file.type),
       "Only .jpg, .png, .webp, .gif formats are supported."
     ),
-  skills: z.string().optional().describe("Enter skills separated by commas (e.g., JavaScript, React, Node.js)"),
+  skills: z.array(z.string()).min(1, "Please select at least one skill."),
   gender: z.enum(['Male', 'Female', 'Other', 'Prefer not to say']).optional(),
   availability: weeklyScheduleSchema.optional().nullable(),
 });
@@ -130,14 +143,13 @@ export function MentorSignupForm() {
       phno: "",
       linkedin_url: "",
       profile_pic_file: null,
-      skills: "",
+      skills: [],
       gender: undefined,
       availability: defaultAvailability,
     },
   });
 
-  const { control, watch } = form;
-  const availabilityValues = watch("availability");
+  const { control } = form; // Removed watch as it's not directly used in this version for skills
 
   async function onSubmit(values: MentorSignupFormValues) {
     setIsSubmitting(true);
@@ -195,7 +207,7 @@ export function MentorSignupForm() {
       linkedin_url: values.linkedin_url || null,
       availability: values.availability ? JSON.stringify({ weeklySchedule: values.availability }) : null,
       profile_pic_url: uploadedProfilePicUrl,
-      skills: values.skills ? values.skills.split(',').map(s => s.trim()).filter(s => s.length > 0) : null,
+      skills: values.skills, // skills is already an array
       gender: values.gender || null,
     };
     
@@ -274,7 +286,7 @@ export function MentorSignupForm() {
                 <Input placeholder="e.g., Web Development, Product Management" {...field} value={field.value ?? ""} />
               </FormControl>
               <FormDescription>
-                What are you skilled in?
+                What is your primary area of expertise?
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -285,12 +297,30 @@ export function MentorSignupForm() {
           name="skills"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Skills</FormLabel>
+              <FormLabel>Skills *</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., JavaScript, React, Python" {...field} value={field.value ?? ""} />
+                <div className="flex flex-wrap gap-2">
+                  {predefinedSkills.map((skill) => (
+                    <Button
+                      type="button"
+                      key={skill}
+                      variant={field.value?.includes(skill) ? "default" : "outline"}
+                      onClick={() => {
+                        const currentSkills = field.value || [];
+                        const newSkills = currentSkills.includes(skill)
+                          ? currentSkills.filter((s) => s !== skill)
+                          : [...currentSkills, skill];
+                        field.onChange(newSkills);
+                      }}
+                      className="rounded-full px-3 py-1 text-sm"
+                    >
+                      {skill}
+                    </Button>
+                  ))}
+                </div>
               </FormControl>
               <FormDescription>
-                Enter skills separated by commas.
+                Select the skills you can offer mentorship in.
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -351,7 +381,7 @@ export function MentorSignupForm() {
         <FormField
           control={form.control}
           name="profile_pic_file"
-          render={({ field: { onChange, value, ...rest } }) => (
+          render={({ field: { onChange, value, ...rest } }) => ( // value is not directly used here for file input
             <FormItem>
               <FormLabel>Profile Picture</FormLabel>
               <FormControl>
@@ -558,3 +588,5 @@ function DayAvailabilityControl({ day, control, form }: DayAvailabilityControlPr
     </Card>
   );
 }
+
+    
