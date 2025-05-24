@@ -25,9 +25,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createClient } from "@/lib/supabaseClient";
+import { supabase } from '@/lib/supabaseClient'; // Use the configured Supabase client
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 const mentorSignupSchema = z.object({
   mentors_name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -39,13 +42,18 @@ const mentorSignupSchema = z.object({
     z.number().int().min(0, "Years of experience must be 0 or more.").optional().nullable()
   ),
   description: z.string().optional(),
-  image_url: z.string().url({ message: "Must be a valid URL" }).optional().or(z.literal('')).nullable(),
   email: z.string().email({ message: "Please enter a valid email." }).optional().or(z.literal('')).nullable(),
   phno: z.string().optional(),
   linkedin_url: z.string().url({ message: "Must be a valid LinkedIn URL" }).optional().or(z.literal('')).nullable(),
   availability: z.string().optional(),
   availability_status: z.enum(['Available', 'Unavailable', 'Limited']).default('Available'),
-  profile_pic_url: z.string().url({ message: "Must be a valid profile picture URL" }).optional().or(z.literal('')).nullable(),
+  profile_pic_file: z
+    .instanceof(File, { message: "Profile picture is required." })
+    .refine((file) => file.size <= MAX_FILE_SIZE, `Max image size is 5MB.`)
+    .refine(
+      (file) => ACCEPTED_IMAGE_TYPES.includes(file.type),
+      "Only .jpg, .png, .webp, .gif formats are supported."
+    ).optional().nullable(),
   skills: z.string().optional().describe("Enter skills separated by commas (e.g., JavaScript, React, Node.js)"),
   gender: z.enum(['Male', 'Female', 'Other', 'Prefer not to say']).optional(),
 });
@@ -65,13 +73,12 @@ export function MentorSignupForm() {
       college: "",
       years_of_experience: undefined,
       description: "",
-      image_url: "",
       email: "",
       phno: "",
       linkedin_url: "",
       availability: "",
       availability_status: "Available",
-      profile_pic_url: "",
+      profile_pic_file: undefined,
       skills: "",
       gender: undefined,
     },
@@ -79,7 +86,47 @@ export function MentorSignupForm() {
 
   async function onSubmit(values: MentorSignupFormValues) {
     setIsSubmitting(true);
-    const supabase = createClient();
+    let uploadedProfilePicUrl: string | null = null;
+
+    if (values.profile_pic_file) {
+      const file = values.profile_pic_file;
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `public/${fileName}`;
+
+      try {
+        const { error: uploadError } = await supabase.storage
+          .from('profile-pictures')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false,
+          });
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        const { data: publicUrlData } = supabase.storage
+          .from('profile-pictures')
+          .getPublicUrl(filePath);
+        
+        if (publicUrlData) {
+          uploadedProfilePicUrl = publicUrlData.publicUrl;
+        } else {
+            throw new Error("Could not get public URL for uploaded image.");
+        }
+
+      } catch (error: any) {
+        console.error("Error uploading profile picture:", error);
+        toast({
+          title: "Profile Picture Upload Failed",
+          description: error.message || "Could not upload your profile picture. Please try again.",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+    }
 
     const dataToInsert = {
       mentors_name: values.mentors_name,
@@ -88,39 +135,28 @@ export function MentorSignupForm() {
       college: values.college || null,
       years_of_experience: values.years_of_experience === undefined || isNaN(values.years_of_experience) ? null : values.years_of_experience,
       description: values.description || null,
-      image_url: values.image_url || null,
       email: values.email || null,
       phno: values.phno || null,
       linkedin_url: values.linkedin_url || null,
       availability: values.availability || null,
       availability_status: values.availability_status,
-      profile_pic_url: values.profile_pic_url || null,
+      profile_pic_url: uploadedProfilePicUrl, // Use the uploaded file's URL
       skills: values.skills ? values.skills.split(',').map(s => s.trim()).filter(s => s.length > 0) : null,
       gender: values.gender || null,
-      // rating and user_id will use DB defaults or be handled separately
     };
     
-    // Explicitly remove undefined keys as Supabase might not handle them well for optional fields
-    // However, the mapping above with `|| null` should handle most cases.
-    // For truly optional fields not mapped to null, this would be important:
-    // Object.keys(dataToInsert).forEach(key => {
-    //   if (dataToInsert[key as keyof typeof dataToInsert] === undefined) {
-    //     delete dataToInsert[key as keyof typeof dataToInsert];
-    //   }
-    // });
-
-    const { data, error } = await supabase
+    const { data, error: insertError } = await supabase
       .from('mentors')
       .insert([dataToInsert])
       .select();
 
     setIsSubmitting(false);
 
-    if (error) {
-      console.error("Supabase error:", error);
+    if (insertError) {
+      console.error("Supabase error:", insertError);
       toast({
         title: "Error Signing Up",
-        description: error.message || "Could not save your details. Please try again.",
+        description: insertError.message || "Could not save your details. Please try again.",
         variant: "destructive",
       });
     } else {
@@ -128,7 +164,7 @@ export function MentorSignupForm() {
         title: "Signup Successful!",
         description: "Welcome! Your mentor profile has been created.",
       });
-      form.reset(); // Reset form fields
+      form.reset(); 
     }
   }
 
@@ -260,31 +296,23 @@ export function MentorSignupForm() {
         />
         <FormField
           control={form.control}
-          name="profile_pic_url"
-          render={({ field }) => (
+          name="profile_pic_file"
+          render={({ field: { onChange, value, ...rest } }) => ( // Destructure `value` out so it's not passed to Input type="file"
             <FormItem>
-              <FormLabel>Profile Picture URL</FormLabel>
+              <FormLabel>Profile Picture</FormLabel>
               <FormControl>
-                <Input placeholder="https://example.com/your-photo.jpg" {...field} value={field.value ?? ""} />
+                <Input
+                  type="file"
+                  accept={ACCEPTED_IMAGE_TYPES.join(",")}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    onChange(file || null);
+                  }}
+                  {...rest} // `onBlur`, `ref` etc.
+                />
               </FormControl>
                <FormDescription>
-                Link to a publicly accessible image for your profile.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-         <FormField
-          control={form.control}
-          name="image_url"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Cover Image URL (Optional)</FormLabel>
-              <FormControl>
-                <Input placeholder="https://example.com/your-banner.jpg" {...field} value={field.value ?? ""} />
-              </FormControl>
-               <FormDescription>
-                Link to an optional cover image for your profile.
+                Upload an image for your profile (max 5MB; JPG, PNG, WEBP, GIF).
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -382,3 +410,6 @@ export function MentorSignupForm() {
     </Form>
   );
 }
+
+
+    
