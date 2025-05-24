@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
@@ -25,12 +25,58 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { supabase } from '@/lib/supabaseClient'; // Use the configured Supabase client
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { supabase } from '@/lib/supabaseClient';
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
+type DayOfWeek = typeof daysOfWeek[number];
+
+const timeOptions = Array.from({ length: 48 }, (_, i) => {
+  const hours = Math.floor(i / 2);
+  const minutes = (i % 2) * 30;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+});
+
+const timeSlotSchema = z.object({
+  start: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:MM)"),
+  end: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:MM)"),
+}).refine(data => data.end > data.start, {
+  message: "End time must be after start time",
+  path: ["end"], // Point error to 'end' field
+});
+
+const dayScheduleSchema = z.object({
+  enabled: z.boolean(),
+  slots: z.array(timeSlotSchema),
+}).superRefine((data, ctx) => {
+  if (data.enabled && data.slots.length > 1) {
+    const sortedSlots = [...data.slots].sort((a, b) => a.start.localeCompare(b.start));
+    for (let i = 0; i < sortedSlots.length - 1; i++) {
+      if (sortedSlots[i].end > sortedSlots[i+1].start) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Time slots must not overlap.",
+          path: ["slots"],
+        });
+        break; 
+      }
+    }
+  }
+});
+
+const weeklyScheduleSchema = z.object(
+  daysOfWeek.reduce((acc, day) => {
+    acc[day] = dayScheduleSchema;
+    return acc;
+  }, {} as Record<DayOfWeek, typeof dayScheduleSchema>)
+);
 
 const mentorSignupSchema = z.object({
   mentors_name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -45,20 +91,27 @@ const mentorSignupSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email." }).optional().or(z.literal('')).nullable(),
   phno: z.string().optional(),
   linkedin_url: z.string().url({ message: "Must be a valid LinkedIn URL" }).optional().or(z.literal('')).nullable(),
-  availability: z.string().optional(),
-  availability_status: z.enum(['Available', 'Unavailable', 'Limited']).default('Available'),
   profile_pic_file: z
-    .instanceof(File, { message: "Profile picture is required." })
-    .refine((file) => file.size <= MAX_FILE_SIZE, `Max image size is 5MB.`)
+    .instanceof(File)
+    .optional()
+    .nullable()
+    .refine((file) => !file || file.size <= MAX_FILE_SIZE, `Max image size is 5MB.`)
     .refine(
-      (file) => ACCEPTED_IMAGE_TYPES.includes(file.type),
+      (file) => !file || ACCEPTED_IMAGE_TYPES.includes(file.type),
       "Only .jpg, .png, .webp, .gif formats are supported."
-    ).optional().nullable(),
+    ),
   skills: z.string().optional().describe("Enter skills separated by commas (e.g., JavaScript, React, Node.js)"),
   gender: z.enum(['Male', 'Female', 'Other', 'Prefer not to say']).optional(),
+  availability: weeklyScheduleSchema.optional().nullable(),
 });
 
 type MentorSignupFormValues = z.infer<typeof mentorSignupSchema>;
+
+const defaultAvailability = daysOfWeek.reduce((acc, day) => {
+  acc[day] = { enabled: false, slots: [] };
+  return acc;
+}, {} as Record<DayOfWeek, { enabled: boolean; slots: { start: string; end: string }[] }>);
+
 
 export function MentorSignupForm() {
   const { toast } = useToast();
@@ -76,13 +129,15 @@ export function MentorSignupForm() {
       email: "",
       phno: "",
       linkedin_url: "",
-      availability: "",
-      availability_status: "Available",
-      profile_pic_file: undefined,
+      profile_pic_file: null,
       skills: "",
       gender: undefined,
+      availability: defaultAvailability,
     },
   });
+
+  const { control, watch } = form;
+  const availabilityValues = watch("availability");
 
   async function onSubmit(values: MentorSignupFormValues) {
     setIsSubmitting(true);
@@ -138,9 +193,8 @@ export function MentorSignupForm() {
       email: values.email || null,
       phno: values.phno || null,
       linkedin_url: values.linkedin_url || null,
-      availability: values.availability || null,
-      availability_status: values.availability_status,
-      profile_pic_url: uploadedProfilePicUrl, // Use the uploaded file's URL
+      availability: values.availability ? JSON.stringify({ weeklySchedule: values.availability }) : null,
+      profile_pic_url: uploadedProfilePicUrl,
       skills: values.skills ? values.skills.split(',').map(s => s.trim()).filter(s => s.length > 0) : null,
       gender: values.gender || null,
     };
@@ -297,7 +351,7 @@ export function MentorSignupForm() {
         <FormField
           control={form.control}
           name="profile_pic_file"
-          render={({ field: { onChange, value, ...rest } }) => ( // Destructure `value` out so it's not passed to Input type="file"
+          render={({ field: { onChange, value, ...rest } }) => (
             <FormItem>
               <FormLabel>Profile Picture</FormLabel>
               <FormControl>
@@ -308,7 +362,7 @@ export function MentorSignupForm() {
                     const file = event.target.files?.[0];
                     onChange(file || null);
                   }}
-                  {...rest} // `onBlur`, `ref` etc.
+                  {...rest}
                 />
               </FormControl>
                <FormDescription>
@@ -336,48 +390,15 @@ export function MentorSignupForm() {
             </FormItem>
           )}
         />
+
+        <div className="space-y-6">
+          <FormLabel className="text-lg font-semibold">Set Your Weekly Availability</FormLabel>
+          {daysOfWeek.map((day) => (
+            <DayAvailabilityControl key={day} day={day} control={control} form={form} />
+          ))}
+        </div>
+
         <FormField
-          control={form.control}
-          name="availability"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Availability Details</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="e.g., Evenings on weekdays, Flexible on weekends. Preferred contact method."
-                  className="resize-y"
-                  {...field}
-                  value={field.value ?? ""}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <FormField
-            control={form.control}
-            name="availability_status"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Availability Status</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select availability status" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="Available">Available</SelectItem>
-                    <SelectItem value="Unavailable">Unavailable</SelectItem>
-                    <SelectItem value="Limited">Limited Availability</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
             control={form.control}
             name="gender"
             render={({ field }) => (
@@ -400,7 +421,6 @@ export function MentorSignupForm() {
               </FormItem>
             )}
           />
-        </div>
 
         <Button type="submit" className="w-full md:w-auto" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -411,5 +431,130 @@ export function MentorSignupForm() {
   );
 }
 
+interface DayAvailabilityControlProps {
+  day: DayOfWeek;
+  control: any; // Type for react-hook-form's control
+  form: any; // Type for react-hook-form instance
+}
 
-    
+function DayAvailabilityControl({ day, control, form }: DayAvailabilityControlProps) {
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: `availability.${day}.slots`,
+  });
+
+  const isEnabled = form.watch(`availability.${day}.enabled`);
+
+  return (
+    <Card className="border-border/70 shadow-md">
+      <CardHeader className="flex flex-row items-center justify-between p-4">
+        <FormField
+          control={control}
+          name={`availability.${day}.enabled`}
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <FormLabel className="text-base font-medium">
+                {day}
+              </FormLabel>
+            </FormItem>
+          )}
+        />
+        <Badge variant={isEnabled ? "default" : "secondary"}>
+          {isEnabled ? "Available" : "Unavailable"}
+        </Badge>
+      </CardHeader>
+      {isEnabled && (
+        <CardContent className="p-4 pt-0 space-y-3">
+          {fields.map((item, index) => (
+            <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-2 p-3 border rounded-md bg-secondary/30">
+              <div className="grid grid-cols-2 gap-2 flex-grow">
+                <FormField
+                  control={control}
+                  name={`availability.${day}.slots.${index}.start`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs">Start</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Start time" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {timeOptions.map(time => (
+                            <SelectItem key={`start-${time}`} value={time}>{time}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage className="text-xs" />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={control}
+                  name={`availability.${day}.slots.${index}.end`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs">End</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="End time" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {timeOptions.map(time => (
+                            <SelectItem key={`end-${time}`} value={time}>{time}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage className="text-xs" />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => remove(index)}
+                className="mt-2 sm:mt-0 text-destructive hover:bg-destructive/10 self-end sm:self-center"
+                aria-label="Remove slot"
+              >
+                <Trash2 className="h-4 w-4 mr-1 sm:mr-0" /> <span className="sm:hidden">Remove</span>
+              </Button>
+            </div>
+          ))}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => append({ start: '09:00', end: '10:00' })}
+            className="mt-2"
+          >
+            Add Slot
+          </Button>
+           {/* Display slot array level errors, e.g. overlap */}
+          {form.formState.errors.availability?.[day]?.slots?.message && (
+            <p className="text-sm font-medium text-destructive">
+              {form.formState.errors.availability?.[day]?.slots?.message}
+            </p>
+          )}
+           {/* @ts-ignore Zod superRefine error on root of array */}
+          {form.formState.errors.availability?.[day]?.slots?.root?.message && (
+             <p className="text-sm font-medium text-destructive">
+                {/* @ts-ignore */}
+              {form.formState.errors.availability?.[day]?.slots?.root?.message}
+            </p>
+          )}
+        </CardContent>
+      )}
+    </Card>
+  );
+}
