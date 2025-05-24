@@ -156,51 +156,35 @@ export function MentorSignupForm() {
     let authUserId: string | null = null;
     let uploadedProfilePicUrl: string | null = null;
 
-    // 1. Supabase Auth Signup
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    // 1. Supabase Auth: Initiate passwordless sign-in (sends magic link/OTP)
+    // This will also create the user if they don't exist.
+    const { data: authData, error: authError } = await supabase.auth.signInWithOtp({
       email: values.email,
-      // Not providing a password here relies on magic link / confirmation email flow
-      // Ensure Supabase project settings (Site URL, Enable Magic Link/Email Confirmations) are correct.
+      options: {
+        shouldCreateUser: true, // Default is true, but explicit for clarity
+        // emailRedirectTo: `${window.location.origin}/auth/callback`, // Optional: if you have a specific callback page
+      }
     });
 
     if (authError) {
-      // Check if user already exists, they might need to log in or use a different email
-      if (authError.message.includes("User already registered")) {
-         toast({
-          title: "Email Already Registered",
-          description: "This email is already in use. Please use a different email or log in if you already have an account.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Authentication Failed",
-          description: authError.message || "Could not initiate signup. Please try again.",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Authentication Failed",
+        description: authError.message || "Could not initiate signup. Please try again.",
+        variant: "destructive",
+      });
       setIsSubmitting(false);
       return;
     }
 
-    if (!authData.user && !authData.session) {
-        // This case implies that a confirmation email has been sent, but the user is not yet authenticated.
-        // For example, if email confirmation is required but magic link is off.
-        // We will proceed to create the mentor profile, but it won't be linked to a user_id immediately.
-        // Or, if authData.user.identities is empty or doesn't have email.
-        // A more robust flow might handle this differently, but for now, we check if we got a user ID.
-        // If `authData.user` is null BUT a magic link / confirmation was sent, authData.user might still be null until they click the link.
-        // If signUp completes successfully and returns a user object (even if unconfirmed), we use its ID.
-        // Supabase returns `user` if the user entry was created, even if confirmation is pending.
-        if (authData.user?.id) {
-             authUserId = authData.user.id;
-        } else {
-            // If no user ID is available immediately, we might not be able to link.
-            // However, Supabase sends the email even if user is null but session is also null initially for confirm email flow.
-            // For now, we'll show a generic message that link is sent, and try to save profile without user_id if authUserId is null.
-            // This part of logic depends heavily on Supabase project's auth settings (Magic Link vs. Confirm Email)
-        }
-    } else if (authData.user) {
-        authUserId = authData.user.id;
+    // If signInWithOtp succeeds, authData.user should contain the user object
+    // (either existing or newly created but unconfirmed).
+    // authData.session will be null until the OTP/magic link is used.
+    if (authData.user) {
+      authUserId = authData.user.id;
+    } else {
+      // This case implies the OTP/link was sent, but no user object was immediately returned.
+      // This can happen, and the profile can still be created. User linking might occur later.
+      console.warn("signInWithOtp completed, but no user object returned immediately. Link likely sent.");
     }
 
 
@@ -245,7 +229,7 @@ export function MentorSignupForm() {
     } else if (values.profile_pic_file && !authUserId) {
         toast({
           title: "Profile Picture Skipped",
-          description: "Profile picture upload was skipped as user authentication is pending email confirmation.",
+          description: "Profile picture upload was skipped as user ID was not immediately available. It can be added later.",
           variant: "default",
         });
     }
@@ -259,7 +243,7 @@ export function MentorSignupForm() {
       college: values.college || null,
       years_of_experience: values.years_of_experience === undefined || isNaN(values.years_of_experience) ? null : values.years_of_experience,
       description: values.description || null,
-      email: values.email, // Storing form email, could be different from auth email if allowed
+      email: values.email, 
       phno: values.phno || null,
       linkedin_url: values.linkedin_url || null,
       availability: values.availability ? JSON.stringify({ weeklySchedule: values.availability }) : null,
@@ -287,7 +271,7 @@ export function MentorSignupForm() {
     } else {
       toast({
         title: "Signup Initiated!",
-        description: `A confirmation or magic link has been sent to ${values.email}. Please check your inbox to complete the process. Your profile details have been saved.`,
+        description: `A magic link or confirmation email has been sent to ${values.email}. Please check your inbox to complete the process. Your profile details have been saved.`,
       });
       form.reset(); 
     }
@@ -649,5 +633,7 @@ function DayAvailabilityControl({ day, control, form }: DayAvailabilityControlPr
     </Card>
   );
 }
+
+    
 
     
