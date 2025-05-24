@@ -62,7 +62,7 @@ const timeSlotSchema = z.object({
   end: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:MM)"),
 }).refine(data => data.end > data.start, {
   message: "End time must be after start time",
-  path: ["end"], // Point error to 'end' field
+  path: ["end"], 
 });
 
 const dayScheduleSchema = z.object({
@@ -93,6 +93,7 @@ const weeklyScheduleSchema = z.object(
 
 const mentorSignupSchema = z.object({
   mentors_name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+  email: z.string().min(1, "Email is required.").email({ message: "Please enter a valid email." }),
   title: z.string().optional(),
   area_of_expertise: z.string().optional(),
   college: z.string().optional(),
@@ -101,7 +102,6 @@ const mentorSignupSchema = z.object({
     z.number().int().min(0, "Years of experience must be 0 or more.").optional().nullable()
   ),
   description: z.string().optional(),
-  email: z.string().email({ message: "Please enter a valid email." }).optional().or(z.literal('')).nullable(),
   phno: z.string().optional(),
   linkedin_url: z.string().url({ message: "Must be a valid LinkedIn URL" }).optional().or(z.literal('')).nullable(),
   profile_pic_file: z
@@ -134,12 +134,12 @@ export function MentorSignupForm() {
     resolver: zodResolver(mentorSignupSchema),
     defaultValues: {
       mentors_name: "",
+      email: "",
       title: "",
       area_of_expertise: "",
       college: "",
       years_of_experience: undefined,
       description: "",
-      email: "",
       phno: "",
       linkedin_url: "",
       profile_pic_file: null,
@@ -149,24 +149,74 @@ export function MentorSignupForm() {
     },
   });
 
-  const { control } = form; // Removed watch as it's not directly used in this version for skills
+  const { control } = form;
 
   async function onSubmit(values: MentorSignupFormValues) {
     setIsSubmitting(true);
+    let authUserId: string | null = null;
     let uploadedProfilePicUrl: string | null = null;
 
-    if (values.profile_pic_file) {
+    // 1. Supabase Auth Signup
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: values.email,
+      // Not providing a password here relies on magic link / confirmation email flow
+      // Ensure Supabase project settings (Site URL, Enable Magic Link/Email Confirmations) are correct.
+    });
+
+    if (authError) {
+      // Check if user already exists, they might need to log in or use a different email
+      if (authError.message.includes("User already registered")) {
+         toast({
+          title: "Email Already Registered",
+          description: "This email is already in use. Please use a different email or log in if you already have an account.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Authentication Failed",
+          description: authError.message || "Could not initiate signup. Please try again.",
+          variant: "destructive",
+        });
+      }
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!authData.user && !authData.session) {
+        // This case implies that a confirmation email has been sent, but the user is not yet authenticated.
+        // For example, if email confirmation is required but magic link is off.
+        // We will proceed to create the mentor profile, but it won't be linked to a user_id immediately.
+        // Or, if authData.user.identities is empty or doesn't have email.
+        // A more robust flow might handle this differently, but for now, we check if we got a user ID.
+        // If `authData.user` is null BUT a magic link / confirmation was sent, authData.user might still be null until they click the link.
+        // If signUp completes successfully and returns a user object (even if unconfirmed), we use its ID.
+        // Supabase returns `user` if the user entry was created, even if confirmation is pending.
+        if (authData.user?.id) {
+             authUserId = authData.user.id;
+        } else {
+            // If no user ID is available immediately, we might not be able to link.
+            // However, Supabase sends the email even if user is null but session is also null initially for confirm email flow.
+            // For now, we'll show a generic message that link is sent, and try to save profile without user_id if authUserId is null.
+            // This part of logic depends heavily on Supabase project's auth settings (Magic Link vs. Confirm Email)
+        }
+    } else if (authData.user) {
+        authUserId = authData.user.id;
+    }
+
+
+    // 2. Profile Picture Upload (if file provided and authUserId is available for path)
+    if (values.profile_pic_file && authUserId) {
       const file = values.profile_pic_file;
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `public/${fileName}`;
+      const fileName = `${Date.now()}.${fileExt}`; // Using timestamp for uniqueness
+      const filePath = `${authUserId}/${fileName}`; // Store image under user's ID folder
 
       try {
         const { error: uploadError } = await supabase.storage
           .from('profile-pictures')
           .upload(filePath, file, {
             cacheControl: '3600',
-            upsert: false,
+            upsert: false, // Do not upsert, treat as new file
           });
 
         if (uploadError) {
@@ -187,14 +237,21 @@ export function MentorSignupForm() {
         console.error("Error uploading profile picture:", error);
         toast({
           title: "Profile Picture Upload Failed",
-          description: error.message || "Could not upload your profile picture. Please try again.",
+          description: error.message || "Could not upload your profile picture. It will be skipped.",
           variant: "destructive",
         });
-        setIsSubmitting(false);
-        return;
+        // Not returning here, profile creation will proceed without picture if upload fails
       }
+    } else if (values.profile_pic_file && !authUserId) {
+        toast({
+          title: "Profile Picture Skipped",
+          description: "Profile picture upload was skipped as user authentication is pending email confirmation.",
+          variant: "default",
+        });
     }
 
+
+    // 3. Prepare data for 'mentors' table
     const dataToInsert = {
       mentors_name: values.mentors_name,
       title: values.title || null,
@@ -202,16 +259,18 @@ export function MentorSignupForm() {
       college: values.college || null,
       years_of_experience: values.years_of_experience === undefined || isNaN(values.years_of_experience) ? null : values.years_of_experience,
       description: values.description || null,
-      email: values.email || null,
+      email: values.email, // Storing form email, could be different from auth email if allowed
       phno: values.phno || null,
       linkedin_url: values.linkedin_url || null,
       availability: values.availability ? JSON.stringify({ weeklySchedule: values.availability }) : null,
       profile_pic_url: uploadedProfilePicUrl,
-      skills: values.skills, // skills is already an array
+      skills: values.skills,
       gender: values.gender || null,
+      user_id: authUserId, // Link to the auth.users table
     };
     
-    const { data, error: insertError } = await supabase
+    // 4. Insert into 'mentors' table
+    const { error: insertError } = await supabase
       .from('mentors')
       .insert([dataToInsert])
       .select();
@@ -219,16 +278,16 @@ export function MentorSignupForm() {
     setIsSubmitting(false);
 
     if (insertError) {
-      console.error("Supabase error:", insertError);
+      console.error("Supabase mentor insert error:", insertError);
       toast({
-        title: "Error Signing Up",
-        description: insertError.message || "Could not save your details. Please try again.",
+        title: "Error Saving Profile",
+        description: insertError.message || "Could not save your mentor details. Please try again.",
         variant: "destructive",
       });
     } else {
       toast({
-        title: "Signup Successful!",
-        description: "Welcome! Your mentor profile has been created.",
+        title: "Signup Initiated!",
+        description: `A confirmation or magic link has been sent to ${values.email}. Please check your inbox to complete the process. Your profile details have been saved.`,
       });
       form.reset(); 
     }
@@ -255,10 +314,13 @@ export function MentorSignupForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>Email *</FormLabel>
               <FormControl>
-                <Input type="email" placeholder="e.g., jane.doe@example.com" {...field} value={field.value ?? ""} />
+                <Input type="email" placeholder="e.g., jane.doe@example.com" {...field} />
               </FormControl>
+              <FormDescription>
+                A magic link or confirmation email will be sent here.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -381,7 +443,7 @@ export function MentorSignupForm() {
         <FormField
           control={form.control}
           name="profile_pic_file"
-          render={({ field: { onChange, value, ...rest } }) => ( // value is not directly used here for file input
+          render={({ field: { onChange, value, ...rest } }) => ( 
             <FormItem>
               <FormLabel>Profile Picture</FormLabel>
               <FormControl>
@@ -463,8 +525,8 @@ export function MentorSignupForm() {
 
 interface DayAvailabilityControlProps {
   day: DayOfWeek;
-  control: any; // Type for react-hook-form's control
-  form: any; // Type for react-hook-form instance
+  control: any; 
+  form: any; 
 }
 
 function DayAvailabilityControl({ day, control, form }: DayAvailabilityControlProps) {
@@ -570,13 +632,12 @@ function DayAvailabilityControl({ day, control, form }: DayAvailabilityControlPr
           >
             Add Slot
           </Button>
-           {/* Display slot array level errors, e.g. overlap */}
           {form.formState.errors.availability?.[day]?.slots?.message && (
             <p className="text-sm font-medium text-destructive">
               {form.formState.errors.availability?.[day]?.slots?.message}
             </p>
           )}
-           {/* @ts-ignore Zod superRefine error on root of array */}
+          {/* @ts-ignore Zod superRefine error on root of array */}
           {form.formState.errors.availability?.[day]?.slots?.root?.message && (
              <p className="text-sm font-medium text-destructive">
                 {/* @ts-ignore */}
