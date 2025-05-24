@@ -156,6 +156,7 @@ export function MentorSignupForm() {
     let authUserId: string | null = null;
     let uploadedProfilePicUrl: string | null = null;
 
+    // Step 1: Supabase Authentication (OTP/Magic Link)
     const { data: authData, error: authError } = await supabase.auth.signInWithOtp({
       email: values.email,
       options: {
@@ -164,26 +165,35 @@ export function MentorSignupForm() {
     });
 
     if (authError) {
+      console.error("Supabase Auth Error (signInWithOtp):", JSON.stringify(authError, null, 2));
       toast({
-        title: "Authentication Failed",
-        description: authError.message || "Could not initiate signup. Please try again.",
+        title: "Authentication Failed (OTP Step)",
+        description: `Error: ${authError.message || "Could not initiate signup. Please check your email or try again. Review console for details."}`,
         variant: "destructive",
       });
       setIsSubmitting(false);
       return;
     }
 
+    // signInWithOtp might not return user immediately, user confirms via email
     if (authData.user) {
       authUserId = authData.user.id;
     } else {
-      console.warn("signInWithOtp completed, but no user object returned immediately. Link likely sent.");
+      // This is normal for OTP flow, user ID will be available after email confirmation.
+      // For profile picture upload, we might need user to upload it after confirmation if ID is needed for path.
+      console.warn("signInWithOtp initiated. User object not immediately available. User needs to confirm via email.");
     }
 
-    if (values.profile_pic_file && authUserId) {
+    // Step 2: Profile Picture Upload (if applicable)
+    // For robust UX, picture upload should ideally happen after email confirmation or allow upload later
+    // if authUserId is crucial for the storage path and not available yet.
+    // Current implementation attempts upload if file exists, using authUserId if available for path.
+    if (values.profile_pic_file) {
       const file = values.profile_pic_file;
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`; 
-      const filePath = `${authUserId}/${fileName}`; 
+      // Use a generic path or a path that can be updated/associated later if authUserId is null
+      const fileName = `${authUserId || 'unverified_user'}_${Date.now()}.${fileExt}`; 
+      const filePath = `${authUserId || 'public_uploads'}/${fileName}`; // Example: use a common folder if ID unknown
 
       try {
         const { error: uploadError } = await supabase.storage
@@ -210,19 +220,15 @@ export function MentorSignupForm() {
       } catch (error: any) {
         console.error("Error uploading profile picture:", error);
         toast({
-          title: "Profile Picture Upload Failed",
-          description: error.message || "Could not upload your profile picture. It will be skipped.",
-          variant: "destructive",
+          title: "Profile Picture Upload Issue",
+          description: error.message || "Could not upload profile picture. It can be added later.",
+          variant: "destructive", // Or "default" if not critical path
         });
+        // Decide if this is a critical failure or if signup process can continue
       }
-    } else if (values.profile_pic_file && !authUserId) {
-        toast({
-          title: "Profile Picture Skipped",
-          description: "Profile picture upload was skipped as user ID was not immediately available. It can be added later.",
-          variant: "default",
-        });
     }
 
+    // Step 3: Insert Mentor Data into 'mentors' table
     const dataToInsert = {
       mentors_name: values.mentors_name,
       title: values.title || null,
@@ -234,36 +240,34 @@ export function MentorSignupForm() {
       phno: values.phno || null,
       linkedin_url: values.linkedin_url || null,
       availability: values.availability ? JSON.stringify({ weeklySchedule: values.availability }) : null,
-      profile_pic_url: uploadedProfilePicUrl,
+      profile_pic_url: uploadedProfilePicUrl, // This might be null if upload failed or no pic
       skills: values.skills,
       gender: values.gender || null,
-      user_id: authUserId, 
+      user_id: authUserId, // This will be null if user object wasn't immediately available
     };
     
     const { error: insertError } = await supabase
       .from('mentors')
-      .insert([dataToInsert]); // Removed .select()
+      .insert([dataToInsert]);
 
     setIsSubmitting(false);
 
     if (insertError) {
-      console.error("Supabase mentor insert error object:", JSON.stringify(insertError, null, 2)); // Detailed logging
+      console.error("Supabase mentor insert error object:", JSON.stringify(insertError, null, 2));
       toast({
-        title: "Error Saving Profile",
-        description: insertError.message || "Could not save your mentor details. Please try again.",
+        title: "Error Saving Profile Details",
+        description: `Database Error: ${insertError.message || "Could not save mentor details. Please try again. Review console for details."}`,
         variant: "destructive",
       });
     } else {
       toast({
         title: "Signup Initiated!",
-        description: `A magic link or confirmation email has been sent to ${values.email}. Please check your inbox to complete the process. Your profile details have been saved.`,
+        description: `A confirmation link has been sent to ${values.email}. Please check your inbox to complete your registration. Your profile details have been provisionally saved.`,
       });
-      // Store mentor email in localStorage
       if (typeof window !== "undefined") {
         localStorage.setItem('careerDiveMentorEmail', values.email);
       }
       form.reset(); 
-      // Optionally, redirect or update UI further
        if (typeof window !== "undefined") {
         window.location.href = 'https://mentor-dashboard.netlify.app/auth';
       }
