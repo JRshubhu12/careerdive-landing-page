@@ -1,3 +1,4 @@
+
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { SectionWrapper } from './SectionWrapper';
@@ -30,7 +31,7 @@ export function HeroSection() {
             layout="fill"
             objectFit="cover"
             priority
-            data-ai-hint="team online"
+            data-ai-hint="mentor meeting"
           />
            <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
         </div>
