@@ -8,8 +8,8 @@ import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
 
 export const metadata: Metadata = {
-  title: 'Get Started - CareerConnect',
-  description: 'Choose your path on CareerConnect. Sign up as a mentor or mentee.',
+  title: 'Get Started - CareerDive',
+  description: 'Choose your path on CareerDive. Sign up as a mentor or mentee.',
 };
 
 export default function GetStartedPage() {
@@ -23,7 +23,7 @@ export default function GetStartedPage() {
               Choose <span className="text-primary">Your</span> Path
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Select the option that best describes your goals on CareerConnect.
+              Select the option that best describes your goals on CareerDive.
             </p>
           </div>
           <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
@@ -35,7 +35,7 @@ export default function GetStartedPage() {
                     alt="Mentee"
                     layout="fill"
                     objectFit="cover"
-                    data-ai-hint="student learning"
+                    data-ai-hint="person learning"
                   />
                 </div>
                 <CardTitle className="text-2xl font-semibold">I&apos;m a Mentee</CardTitle>
@@ -58,7 +58,7 @@ export default function GetStartedPage() {
                     alt="Mentor"
                     layout="fill"
                     objectFit="cover"
-                    data-ai-hint="professional teaching"
+                    data-ai-hint="expert guidance"
                   />
                 </div>
                 <CardTitle className="text-2xl font-semibold">I&apos;m a Mentor</CardTitle>

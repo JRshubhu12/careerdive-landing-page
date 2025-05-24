@@ -9,11 +9,11 @@ export function FinalCallToAction() {
         Ready to Take the Next Step?
       </h2>
       <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-        Join CareerConnect today and start your journey towards career success.
+        Join CareerDive today and start your journey towards career success.
         It&apos;s free to get started!
       </p>
       <Button size="lg" className="px-10 py-6 text-lg" asChild>
-        <Link href="/get-started">Join CareerConnect Now</Link>
+        <Link href="/get-started">Join CareerDive Now</Link>
       </Button>
     </SectionWrapper>
   );

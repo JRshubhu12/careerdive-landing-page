@@ -3,14 +3,14 @@ import { TestimonialCard } from './TestimonialCard';
 
 const testimonials = [
   {
-    quote: "CareerConnect helped me find a mentor who completely changed my career trajectory. I'm so grateful!",
+    quote: "CareerDive helped me find a mentor who completely changed my career trajectory. I'm so grateful!",
     name: "Shubham K.",
     role: "Full Stack Developer",
     avatarUrl: "https://placehold.co/80x80.png?a=1",
     rating: 5,
   },
   {
-    quote: "As a mentor, I've found it incredibly rewarding to guide and support the next generation of professionals through CareerConnect.",
+    quote: "As a mentor, I've found it incredibly rewarding to guide and support the next generation of professionals through CareerDive.",
     name: "Dr. Anya Sharma",
     role: "Experienced Industry Professional",
     avatarUrl: "https://placehold.co/80x80.png?a=2",
@@ -31,7 +31,7 @@ export function TestimonialsSection() {
       <div className="text-center mb-12">
         <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Hear from Our Successful Users</h2>
         <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-          Real stories from people who've transformed their careers with CareerConnect.
+          Real stories from people who've transformed their careers with CareerDive.
         </p>
       </div>
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">

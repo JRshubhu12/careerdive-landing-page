@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'CareerConnect: Unlock Your Potential',
-  description: 'Connect with experienced mentors and achieve your career goals with CareerConnect.',
+  title: 'CareerDive: Unlock Your Potential',
+  description: 'Connect with experienced mentors and achieve your career goals with CareerDive.',
 };
 
 export default function RootLayout({

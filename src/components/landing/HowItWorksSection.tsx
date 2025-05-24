@@ -29,7 +29,7 @@ export function HowItWorksSection() {
   return (
     <SectionWrapper id="how-it-works" className="bg-secondary/30">
       <div className="text-center mb-12">
-        <h2 className="text-3xl md:text-4xl font-bold tracking-tight">How CareerConnect Works</h2>
+        <h2 className="text-3xl md:text-4xl font-bold tracking-tight">How CareerDive Works</h2>
         <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
           A simple and effective process to kickstart your mentorship journey.
         </p>

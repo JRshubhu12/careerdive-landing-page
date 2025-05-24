@@ -1,10 +1,10 @@
-# CareerConnect
+# CareerDive
 
-This is a Next.js application for CareerConnect, a platform designed to connect mentors and mentees to foster career growth and development.
+This is a Next.js application for CareerDive, a platform designed to connect mentors and mentees to foster career growth and development.
 
 ## Overview
 
-CareerConnect aims to provide a seamless experience for individuals seeking mentorship and for experienced professionals looking to guide others. This landing page showcases the platform's features, benefits, and pricing.
+CareerDive aims to provide a seamless experience for individuals seeking mentorship and for experienced professionals looking to guide others. This landing page showcases the platform's features, benefits, and pricing.
 
 ## Getting Started
 
@@ -24,7 +24,7 @@ The main landing page code can be found in `src/app/page.tsx`. Components specif
 
 ## Core Features (Landing Page)
 
-*   **Hero Section**: Introduces CareerConnect with a compelling headline, subheadline, and calls to action.
+*   **Hero Section**: Introduces CareerDive with a compelling headline, subheadline, and calls to action.
 *   **How it Works**: Explains the user journey on the platform in simple steps.
 *   **Testimonials**: Showcases success stories from users.
 *   **Pricing**: Displays available subscription plans.
@@ -47,7 +47,7 @@ The main landing page code can be found in `src/app/page.tsx`. Components specif
     *   `globals.css`: Global styles and Tailwind CSS configuration.
 *   `src/components/`: Shared UI components.
     *   `ui/`: Shadcn/ui components.
-    *   `landing/`: Components specific to the CareerConnect landing page.
+    *   `landing/`: Components specific to the CareerDive landing page.
 *   `public/`: Static assets.
 
 ## Design Style
@@ -58,3 +58,4 @@ The application follows a modern and clean design aesthetic:
 *   **Typography**: Utilizes clear and readable fonts (Geist Sans, with fallbacks to Arial, Helvetica).
 *   **Layout**: Emphasizes whitespace and responsive design for an optimal user experience across all devices.
 *   **Iconography**: Incorporates simple and clear icons to enhance understanding of product features.
+

@@ -9,10 +9,10 @@ export function HeroSection() {
       <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
         <div className="space-y-6 text-center md:text-left">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter leading-tight">
-            Unlock Your Potential with <span className="text-primary">CareerConnect</span>: Connect with Experienced Mentors Today
+            Unlock Your Potential with <span className="text-primary">CareerDive</span>: Connect with Experienced Mentors Today
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground">
-            Find the guidance you need to achieve your career goals. Whether you&apos;re seeking advice or looking to share your expertise, CareerConnect provides the perfect platform to connect mentors and mentees.
+            Find the guidance you need to achieve your career goals. Whether you&apos;re seeking advice or looking to share your expertise, CareerDive provides the perfect platform to connect mentors and mentees.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
             <Button size="lg" asChild>
@@ -30,7 +30,7 @@ export function HeroSection() {
             layout="fill"
             objectFit="cover"
             priority
-            data-ai-hint="professionals collaborating online"
+            data-ai-hint="team online"
           />
            <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
         </div>
