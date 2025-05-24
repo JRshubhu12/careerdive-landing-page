@@ -6,13 +6,13 @@ import Link from 'next/link';
 
 export function HeroSection() {
   return (
-    <SectionWrapper className="bg-gradient-to-b from-background to-secondary/30 pt-24 md:pt-32">
+    <SectionWrapper className="bg-[linear-gradient(90deg,_#000000,_#3533cd)] pt-24 md:pt-32 text-primary-foreground">
       <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
         <div className="space-y-6 text-center md:text-left">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tighter leading-tight">
-            Unlock Your Potential with <span className="text-primary">CareerDive</span>: Connect with Experienced Mentors Today
+            Unlock Your Potential with <span className="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">CareerDive</span>: Connect with Experienced Mentors Today
           </h1>
-          <p className="text-lg md:text-xl text-muted-foreground">
+          <p className="text-lg md:text-xl text-gray-300">
             Find the guidance you need to achieve your career goals. Whether you&apos;re seeking advice or looking to share your expertise, CareerDive provides the perfect platform to connect mentors and mentees.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
@@ -33,7 +33,7 @@ export function HeroSection() {
             priority
             data-ai-hint="mentor meeting"
           />
-           <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
+           <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent"></div>
         </div>
       </div>
     </SectionWrapper>
