@@ -7,15 +7,30 @@ import { Navigation } from "@/components/Navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { v4 as uuidv4 } from "uuid";
 
-// --- Availability Helper Data ---
-type DayOfWeek =
-  | "Monday"
-  | "Tuesday"
-  | "Wednesday"
-  | "Thursday"
-  | "Friday"
-  | "Saturday"
-  | "Sunday";
+type DayOfWeek = "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday";
+
+interface MentorFormData {
+  mentors_name: string;
+  title: string;
+  area_of_expertise: string;
+  college: string;
+  years_of_experience: number;
+  description: string;
+  email: string;
+  phno: string;
+  linkedin_url: string;
+  availability: string;
+  profile_pic_url: string;
+  gender: string;
+  skills: string[];
+}
+
+interface DayAvailability {
+  enabled: boolean;
+  slots: { start: string; end: string }[];
+  start: string;
+  end: string;
+}
 
 const daysOfWeek: DayOfWeek[] = [
   "Monday",
@@ -26,14 +41,31 @@ const daysOfWeek: DayOfWeek[] = [
   "Saturday",
   "Sunday",
 ];
+const genderOptions = [
+  "Male",
+  "Female",
+  "Non-binary",
+  "Prefer not to say",
+];
+const skillOptions = [
+  "Career Counseling",
+  "Technical Interview Prep",
+  "Resume Review",
+  "Leadership",
+  "Product Management",
+  "Software Engineering",
+  "Data Science",
+  "Machine Learning",
+  "UX Design",
+  "Entrepreneurship",
+];
 
-// 24-hour format time options
 function getTimeOptions() {
   const options: string[] = [];
   for (let hour = 6; hour <= 22; hour++) {
     options.push(
       `${hour.toString().padStart(2, "0")}:00`,
-      hour < 22 ? `${hour.toString().padStart(2, "0")}:30` : undefined
+      hour < 22 ? `${hour.toString().padStart(2, "0")}:30` : ""
     );
   }
   return options.filter(Boolean) as string[];
@@ -41,113 +73,107 @@ function getTimeOptions() {
 const timeOptions = getTimeOptions();
 
 const defaultWeeklyAvailability = () => {
-  const initial: any = {};
+  const initial: Record<DayOfWeek, DayAvailability> = {} as Record<
+    DayOfWeek,
+    DayAvailability
+  >;
   daysOfWeek.forEach((day) => {
     initial[day] = {
       enabled: false,
       slots: [],
       start: "09:00",
-      end: "10:00",
+      end: "17:00",
     };
   });
   return initial;
 };
 
-// --- Modern Time Picker (as in slots page) ---
-function ModernTimePicker({
+const TimeSlotDisplay = ({ start, end }: { start: string; end: string }) => (
+  <div className="flex items-center bg-blue-100 rounded-full px-3 py-1 text-xs font-semibold text-blue-800 shadow-sm">
+    <span>{start}</span>
+    <span className="mx-1">-</span>
+    <span>{end}</span>
+  </div>
+);
+
+const TimePicker = ({
   value,
   onChange,
-  label,
-  options = timeOptions,
   disabled = false,
 }: {
   value: string;
   onChange: (v: string) => void;
-  label?: string;
-  options?: string[];
   disabled?: boolean;
-}) {
-  return (
-    <div className="flex flex-col items-start gap-1 min-w-[80px] flex-1">
-      {label && <span className="text-xs text-[#3232eb] font-medium">{label}</span>}
-      <div className="relative w-full">
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className={`rounded-lg border-2 border-[#3232eb] bg-white text-[#211e6a] px-3 py-1 font-mono shadow-md focus:ring-2 focus:ring-[#3232eb] focus:border-[#3232eb] w-full transition-all duration-150 appearance-none ${disabled ? "opacity-60 pointer-events-none" : ""}`}
-          disabled={disabled}
-        >
-          {options.map((t) => (
-            <option key={t} value={t}>{t}</option>
-          ))}
-        </select>
-        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
-          <svg width="18" height="18" fill="none" viewBox="0 0 20 20">
-            <path d="M6 8l4 4 4-4" stroke="#3232eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </span>
-      </div>
-    </div>
-  );
-}
+}) => (
+  <select
+    value={value}
+    onChange={(e) => onChange(e.target.value)}
+    disabled={disabled}
+    className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm shadow focus:ring-2 focus:ring-blue-400"
+  >
+    {timeOptions.map((time) => (
+      <option key={time} value={time}>
+        {time}
+      </option>
+    ))}
+  </select>
+);
 
-function ModernAddSlotButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
-  return (
-    <button
-      type="button"
-      className={`flex items-center justify-center rounded-full bg-[#3232eb] hover:bg-[#211e6a] text-white font-bold shadow-lg border-2 border-[#211e6a] transition-all duration-150 focus:ring-2 focus:ring-[#3232eb] focus:outline-none w-10 h-10 min-w-[40px] min-h-[40px] ${disabled ? "opacity-50 pointer-events-none" : ""}`}
-      onClick={onClick}
-      title="Add Slot"
-      disabled={disabled}
-      style={{boxShadow: "0 2px 8px #3232eb33"}}
-    >
-      +
-    </button>
-  );
-}
+const SkillTag = ({
+  skill,
+  selected,
+  onClick,
+}: {
+  skill: string;
+  selected: boolean;
+  onClick: () => void;
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`rounded-full px-4 py-1 text-sm font-semibold transition-colors shadow-sm border ${
+      selected
+        ? "bg-blue-600 text-white border-blue-600"
+        : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-blue-50"
+    }`}
+  >
+    {skill}
+  </button>
+);
 
-function ModernRemoveSlotButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      className="ml-1 px-2 py-1 rounded-full bg-red-100 text-red-700 hover:bg-red-200 transition"
-      onClick={onClick}
-      title="Remove slot"
-    >
-      ×
-    </button>
-  );
-}
-
-// --- EMAIL VALIDATION ---
+// Only accept .com emails, not more than one . and must be valid
 function isValidEmail(email: string): boolean {
-  // Only allow valid email with .com TLD
-  const regex = /^[^\s@]+@[^\s@]+\.[cC][oO][mM]$/;
-  return regex.test(email);
+  // Only one @, only one ., must end with .com, and cannot have . before @ or consecutive dots
+  const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9-]+\.com$/;
+  if (!emailPattern.test(email)) return false;
+  if ((email.match(/\./g) || []).length > 1) return false; // only one dot allowed (the .com)
+  return true;
+}
+function isValidPhone(phone: string): boolean {
+  return /^\d{10}$/.test(phone);
 }
 
-// --- SEND CONFIRMATION EMAIL (using Supabase Edge Function or external API) ---
-// NOTE: Update this to your actual email sending logic (e.g. Supabase Edge, SendGrid, etc.)
-async function sendConfirmationEmail(email: string, mentorsName: string) {
-  // Example: Call Supabase Edge Function or API endpoint to send email
-  const response = await fetch("/api/send-mentor-confirmation", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
+async function sendConfirmationEmail(email: string) {
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: `${window.location.origin}/mentor-confirmed`,
     },
-    body: JSON.stringify({
-      email,
-      name: mentorsName
-    })
   });
+  if (error) throw error;
+}
 
-  if (!response.ok) {
-    throw new Error("Failed to send confirmation email.");
-  }
+function openGmailApp(email: string) {
+  const gmailUrl = `googlegmail:///co?to=${encodeURIComponent(email)}`;
+  const mailtoUrl = `mailto:${encodeURIComponent(email)}`;
+  window.location.href = gmailUrl;
+  setTimeout(() => {
+    window.location.href = mailtoUrl;
+  }, 500);
 }
 
 const ApplyMentor = () => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<MentorFormData>({
     mentors_name: "",
     title: "",
     area_of_expertise: "",
@@ -159,20 +185,72 @@ const ApplyMentor = () => {
     linkedin_url: "",
     availability: "",
     profile_pic_url: "",
+    gender: "",
+    skills: [],
   });
 
+  const [weeklySchedule, setWeeklySchedule] = useState(defaultWeeklyAvailability());
   const [profilePicFile, setProfilePicFile] = useState<File | null>(null);
   const [profilePicPreview, setProfilePicPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [authenticating, setAuthenticating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
-  // --- AVAILABILITY STATE ---
-  const [weeklySchedule, setWeeklySchedule] = useState<any>(defaultWeeklyAvailability());
+  // --- Form Handlers ---
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    // Email lock logic: if already a valid .com, don't allow further input
+    if (name === "email") {
+      if (formData.email && isValidEmail(formData.email)) return; // lock if valid
+      // Enforce: if value is valid .com, block further edits
+      if (isValidEmail(value)) {
+        setFormData((prev) => ({
+          ...prev,
+          [name]: value,
+        }));
+        // Lock by not updating further unless backspace
+        return;
+      }
+    }
+    setFormData((prev) => ({
+      ...prev,
+      [name]: name === "years_of_experience" ? Number(value) : value,
+    }));
+  };
 
-  // --- AVAILABILITY HANDLERS ---
+  // Manual email lock: after valid, make it readonly
+  const emailLocked = isValidEmail(formData.email);
+
+  const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleProfilePicChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.size < 5 * 1024 * 1024) {
+      setProfilePicFile(file);
+      setProfilePicPreview(URL.createObjectURL(file));
+    } else if (file) {
+      setError("Please select an image smaller than 5MB");
+    }
+  };
+
+  const toggleSkill = (skill: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      skills: prev.skills.includes(skill)
+        ? prev.skills.filter((s) => s !== skill)
+        : [...prev.skills, skill],
+    }));
+  };
+
+  // --- Availability Handlers ---
   const handleToggleDay = (day: DayOfWeek) => {
-    setWeeklySchedule((prev: any) => ({
+    setWeeklySchedule((prev) => ({
       ...prev,
       [day]: {
         ...prev[day],
@@ -186,7 +264,7 @@ const ApplyMentor = () => {
     type: "start" | "end",
     value: string
   ) => {
-    setWeeklySchedule((prev: any) => ({
+    setWeeklySchedule((prev) => ({
       ...prev,
       [day]: {
         ...prev[day],
@@ -197,18 +275,24 @@ const ApplyMentor = () => {
 
   const slotExists = (day: DayOfWeek, start: string, end: string) => {
     return weeklySchedule[day].slots.some(
-      (slot: any) => slot.start === start && slot.end === end
+      (slot) => slot.start === start && slot.end === end
     );
   };
 
-  const isOverlappingSlot = (day: DayOfWeek, newStart: string, newEnd: string): boolean => {
-    function toMinutes(t: string) {
+  const isOverlappingSlot = (
+    day: DayOfWeek,
+    newStart: string,
+    newEnd: string
+  ) => {
+    const toMinutes = (t: string) => {
       const [h, m] = t.split(":").map(Number);
       return h * 60 + m;
-    }
+    };
+
     const newStartMin = toMinutes(newStart);
     const newEndMin = toMinutes(newEnd);
-    return weeklySchedule[day].slots.some((slot: any) => {
+
+    return weeklySchedule[day].slots.some((slot) => {
       const slotStart = toMinutes(slot.start);
       const slotEnd = toMinutes(slot.end);
       return newStartMin < slotEnd && slotStart < newEndMin;
@@ -216,55 +300,46 @@ const ApplyMentor = () => {
   };
 
   const handleAddTimeSlot = (day: DayOfWeek) => {
-    const start = weeklySchedule[day].start;
-    const end = weeklySchedule[day].end;
-    if (
-      slotExists(day, start, end) ||
-      isOverlappingSlot(day, start, end)
-    ) return;
-    setWeeklySchedule((prev: any) => ({
+    const { start, end } = weeklySchedule[day];
+
+    if (start >= end) {
+      setError("End time must be after start time");
+      return;
+    }
+
+    if (slotExists(day, start, end)) {
+      setError("This time slot already exists");
+      return;
+    }
+
+    if (isOverlappingSlot(day, start, end)) {
+      setError("This time slot overlaps with an existing slot");
+      return;
+    }
+
+    setWeeklySchedule((prev) => ({
       ...prev,
       [day]: {
         ...prev[day],
-        slots: [
-          ...prev[day].slots,
-          { start, end },
-        ],
+        slots: [...prev[day].slots, { start, end }],
         enabled: true,
       },
     }));
+    setError(null);
   };
 
   const handleRemoveSlot = (day: DayOfWeek, idx: number) => {
-    setWeeklySchedule((prev: any) => ({
+    setWeeklySchedule((prev) => ({
       ...prev,
       [day]: {
         ...prev[day],
-        slots: prev[day].slots.filter((_: any, i: number) => i !== idx),
-        enabled: prev[day].slots.length > 1 ? true : false,
+        slots: prev[day].slots.filter((_, i) => i !== idx),
+        enabled: prev[day].slots.length > 1,
       },
     }));
   };
 
-  // --- FORM LOGIC ---
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: name === "years_of_experience" ? Number(value) : value,
-    }));
-  };
-
-  const handleProfilePicChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setProfilePicFile(file);
-      setProfilePicPreview(URL.createObjectURL(file));
-    }
-  };
-
+  // --- Supabase Operations ---
   const uploadProfilePic = async (file: File) => {
     const fileExt = file.name.split(".").pop();
     const fileName = `${uuidv4()}.${fileExt}`;
@@ -281,294 +356,451 @@ const ApplyMentor = () => {
     return publicUrlData.publicUrl;
   };
 
-  // --- AUTHENTICATE EMAIL (sign up if not exists, sign in if exists, using Supabase Auth) ---
-  // You may want to handle "user already exists" gracefully!
-  const authenticateUser = async (email: string) => {
-    setAuthenticating(true);
-
-    // Try sign in (if user exists, send a magic link)
-    let { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: window.location.origin + "/mentor-confirmed"
-      }
-    });
-
-    setAuthenticating(false);
-    if (error) throw error;
-  };
-
+  // --- Form Submission ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
 
-    // Email validation for .com only
     if (!isValidEmail(formData.email)) {
-      alert("Please enter a valid email address ending with .com");
+      setError("Please use a valid .com email address (e.g. user@email.com) and only one dot is allowed.");
       return;
     }
-
+    if (!isValidPhone(formData.phno)) {
+      setError("Please enter a valid 10-digit phone number.");
+      return;
+    }
+    if (formData.skills.length === 0) {
+      setError("Please select at least one skill");
+      return;
+    }
     setLoading(true);
 
     try {
-      // 1. Authenticate user via Supabase Auth (magic link to email)
-      await authenticateUser(formData.email);
-
       let profilePicUrl = "";
-
       if (profilePicFile) {
         profilePicUrl = await uploadProfilePic(profilePicFile);
       }
 
-      // Serialize availability for DB
-      const availability = JSON.stringify({
-        weeklySchedule,
-      });
+      const availability = JSON.stringify({ weeklySchedule });
 
-      // 2. Insert mentor application into database
-      const { error } = await supabase.from("mentors").insert([
+      const { error: dbError } = await supabase.from("mentors").insert([
         {
           ...formData,
           profile_pic_url: profilePicUrl,
           availability,
+          skills: formData.skills,
         },
       ]);
-
-      if (error) {
-        console.error("Error submitting form:", error.message);
-        alert("Failed to submit application.");
+      if (dbError) {
+        setError("Failed to submit application: " + dbError.message);
         setLoading(false);
         return;
       }
 
-      // 3. Send confirmation email
       try {
-        await sendConfirmationEmail(formData.email, formData.mentors_name);
-      } catch (mailErr: any) {
-        // Log but let user continue
-        console.error("Confirmation email error:", mailErr.message);
+        await sendConfirmationEmail(formData.email);
+        openGmailApp(formData.email);
+      } catch (err: any) {
+        setSuccess(
+          "Application submitted. Confirmation email could not be sent. Please contact support if you do not receive an email."
+        );
+        setSubmitted(true);
+        setLoading(false);
+        return;
       }
 
+      setSuccess(
+        "Application submitted successfully! A confirmation email has been sent to your email address."
+      );
       setSubmitted(true);
-      setTimeout(() => {
-        window.location.href = "https://mentor-dashboard.netlify.app/dashboard";
-      }, 1500);
-
     } catch (err: any) {
-      console.error("Submission error:", err.message);
-      alert(err.message || "Failed to submit application.");
+      setError(err.message || "An error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  // --- UI ---
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0A0A0B] to-[#111827] text-white">
+    <div className="min-h-screen bg-gradient-to-tr from-blue-50 to-indigo-100">
       <Navigation />
-      <div className="container mx-auto px-6 py-16 flex flex-col items-center">
-        <h1 className="text-5xl md:text-6xl font-extrabold text-center mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-green-400">
-          Apply as a Mentor
-        </h1>
-        <p className="text-gray-400 text-lg mb-12 text-center max-w-2xl">
-          Share your experience, guide the next generation, and make an impact through CareerDive.
-        </p>
-
-        <div className="w-full max-w-2xl bg-gradient-to-tr from-[#23235c] via-[#25277d] to-[#3232eb] rounded-3xl shadow-2xl p-10 backdrop-blur-md border-2 border-[#53a0fd]">
+      <div className="max-w-4xl mx-auto px-3 py-10">
+        <div className="mb-8 text-center">
+          <h1 className="text-4xl font-extrabold text-blue-900">
+            Become a Mentor
+          </h1>
+          <p className="mt-2 text-lg text-gray-700">
+            Share your knowledge and help shape the future of aspiring professionals.
+          </p>
+        </div>
+        {error && (
+          <div className="mb-4 text-red-700 bg-red-100 border border-red-300 px-4 py-3 rounded-lg text-center shadow">
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className="mb-4 text-green-700 bg-green-100 border border-green-300 px-4 py-3 rounded-lg text-center shadow">
+            {success}
+          </div>
+        )}
+        <div className="bg-white shadow-2xl rounded-2xl p-8">
           {submitted ? (
-            <div className="text-green-400 text-center text-2xl font-semibold">
-              🎉 Application submitted successfully!<br />
-              A confirmation email has been sent to your email address.
+            <div className="flex flex-col items-center py-12">
+              <div className="flex items-center justify-center h-14 w-14 rounded-full bg-green-100 mb-4">
+                <svg
+                  className="h-8 w-8 text-green-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                Application Submitted!
+              </h2>
+              <p className="text-gray-600 mb-2">
+                We have received your mentor application.<br />
+                {success}
+              </p>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {[
-                { label: "Name", name: "mentors_name", type: "text" },
-                { label: "Professional Title", name: "title", type: "text" },
-                { label: "Area of Expertise", name: "area_of_expertise", type: "text" },
-                { label: "College/University", name: "college", type: "text" },
-                { label: "Years of Experience", name: "years_of_experience", type: "number" },
-                { label: "Email", name: "email", type: "email" },
-                { label: "Phone Number", name: "phno", type: "text" },
-                { label: "LinkedIn Profile URL", name: "linkedin_url", type: "text" },
-              ].map((field, idx) => (
-                <div
-                  key={idx}
-                  className="rounded-xl bg-white border-2 border-[#53a0fd] shadow px-4 py-3 flex flex-col"
-                >
-                  <label className="text-[#23235c] mb-1 text-sm font-semibold tracking-wide">
-                    {field.label}
-                  </label>
-                  <Input
-                    name={field.name}
-                    type={field.type}
-                    value={(formData as any)[field.name]}
-                    onChange={handleChange}
-                    className="bg-white border-[#53a0fd] focus:border-blue-500 text-[#23235c] placeholder-gray-500"
-                    required
-                  />
-                  {field.name === "email" && formData.email && !isValidEmail(formData.email) && (
-                    <span className="text-xs text-red-600 pt-1">
-                      Enter a valid .com email address.
-                    </span>
-                  )}
-                </div>
-              ))}
-
-              <div className="rounded-xl bg-white border-2 border-[#53a0fd] shadow px-4 py-3 flex flex-col">
-                <label className="text-[#23235c] mb-1 text-sm font-semibold tracking-wide">Description</label>
-                <Textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  className="bg-white border-[#53a0fd] focus:border-blue-500 text-[#23235c] placeholder-gray-500"
-                  required
-                />
-              </div>
-
-              {/* AVAILABILITY SECTION - MODERN SLOTSPAGE DESIGN */}
-              <div className="rounded-xl bg-white border-2 border-[#53a0fd] shadow px-4 py-3">
-                <label className="block text-[#23235c] mb-2 text-sm font-semibold tracking-wide">
-                  Availability <span className="text-gray-500 font-normal">(Select days and time slots)</span>
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {daysOfWeek.map((day) => {
-                    const isDuplicate = slotExists(
-                      day,
-                      weeklySchedule[day].start,
-                      weeklySchedule[day].end
-                    );
-                    const overlap = isOverlappingSlot(
-                      day,
-                      weeklySchedule[day].start,
-                      weeklySchedule[day].end
-                    );
-                    return (
-                      <div
-                        key={day}
-                        className={`rounded-2xl shadow-md p-4 bg-gradient-to-tr from-white via-[#f4f7ff] to-[#eaf0ff] border-2 transition
-                          ${weeklySchedule[day].enabled ? "border-[#3232eb]" : "border-gray-200 opacity-75"}
-                        `}
-                      >
-                        <div>
-                          <div className="flex items-center mb-2">
-                            <input
-                              type="checkbox"
-                              checked={weeklySchedule[day].enabled}
-                              onChange={() => handleToggleDay(day)}
-                              className="h-5 w-5 accent-[#3232eb] rounded-full outline-none border-2 border-[#3232eb] mr-2"
-                              id={day}
-                            />
-                            <label
-                              htmlFor={day}
-                              className={`text-base font-semibold tracking-wide ${weeklySchedule[day].enabled ? "text-[#211e6a]" : "text-gray-400"}`}
-                            >
-                              {day}
-                            </label>
-                          </div>
-                          {weeklySchedule[day].enabled ? (
-                            <div className="flex flex-col gap-2">
-                              {weeklySchedule[day].slots.length === 0 && (
-                                <div className="text-xs text-gray-400 italic">No slots added</div>
-                              )}
-                              {weeklySchedule[day].slots.map((slot: { start: string; end: string }, idx: number) => (
-                                <div
-                                  key={idx}
-                                  className="flex items-center gap-2 bg-gradient-to-r from-[#eaf0ff] to-[#c8d6ff] rounded-xl px-2 py-2 shadow"
-                                >
-                                  <ModernTimePicker
-                                    value={slot.start}
-                                    onChange={(v) => {
-                                      const newSlots = [...weeklySchedule[day].slots];
-                                      newSlots[idx].start = v;
-                                      setWeeklySchedule((prev: any) => ({
-                                        ...prev,
-                                        [day]: { ...prev[day], slots: newSlots },
-                                      }));
-                                    }}
-                                  />
-                                  <span className="mx-1 text-[#3232eb] font-bold">-</span>
-                                  <ModernTimePicker
-                                    value={slot.end}
-                                    onChange={(v) => {
-                                      const newSlots = [...weeklySchedule[day].slots];
-                                      newSlots[idx].end = v;
-                                      setWeeklySchedule((prev: any) => ({
-                                        ...prev,
-                                        [day]: { ...prev[day], slots: newSlots },
-                                      }));
-                                    }}
-                                  />
-                                  <ModernRemoveSlotButton
-                                    onClick={() => handleRemoveSlot(day, idx)}
-                                  />
-                                </div>
-                              ))}
-                              <div className="flex flex-row flex-wrap items-end gap-2 mt-2">
-                                <ModernTimePicker
-                                  value={weeklySchedule[day].start}
-                                  onChange={(v) => handleTimeChange(day, "start", v)}
-                                />
-                                <span className="mx-1 text-[#3232eb] font-bold">-</span>
-                                <ModernTimePicker
-                                  value={weeklySchedule[day].end}
-                                  onChange={(v) => handleTimeChange(day, "end", v)}
-                                />
-                                <ModernAddSlotButton
-                                  onClick={() => handleAddTimeSlot(day)}
-                                  disabled={isDuplicate || overlap}
-                                />
-                              </div>
-                              {(overlap || isDuplicate) && (
-                                <div className="text-xs text-red-600 mt-1 font-medium max-w-full whitespace-normal break-words">
-                                  {overlap
-                                    ? "Your slot is already booked or overlaps with another slot."
-                                    : "This exact slot already exists."}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="text-gray-400 text-sm mt-2">Unavailable</div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="rounded-xl bg-white border-2 border-[#53a0fd] shadow px-4 py-3 flex flex-col">
-                <label className="text-[#23235c] mb-1 text-sm font-semibold tracking-wide">
-                  Profile Picture (Optional)
-                </label>
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleProfilePicChange}
-                  className="bg-white border-none focus:ring-0 text-[#23235c] placeholder-gray-500"
-                />
-                {profilePicPreview && (
-                  <div className="mt-4 flex flex-col items-center space-y-2">
-                    <img
-                      src={profilePicPreview}
-                      alt="Profile Preview"
-                      className="h-32 w-32 rounded-full object-cover border-2 border-blue-400"
+            <form onSubmit={handleSubmit} className="space-y-8">
+              {/* Personal Information */}
+              <section>
+                <h3 className="text-xl font-bold text-blue-800 mb-2">
+                  Personal Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Full Name
+                    </label>
+                    <Input
+                      type="text"
+                      name="mentors_name"
+                      value={formData.mentors_name}
+                      onChange={handleChange}
+                      required
                     />
-                    <p className="text-sm text-gray-400">Profile picture preview</p>
                   </div>
-                )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Gender
+                    </label>
+                    <select
+                      name="gender"
+                      value={formData.gender}
+                      onChange={handleSelectChange}
+                      className="w-full rounded-lg border border-gray-300 py-2 px-3 text-gray-700"
+                    >
+                      <option value="">Select</option>
+                      {genderOptions.map((gender) => (
+                        <option key={gender} value={gender}>
+                          {gender}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email address <span style={{color: "#e53e3e"}}>*</span>
+                      <span style={{ display: "block", fontSize: 12, color: "#718096" }}>
+                        Only valid <b>.com</b> emails are accepted. Only one dot (.) is allowed after @. Once filled, cannot be changed.
+                      </span>
+                    </label>
+                    <Input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      required
+                      maxLength={100}
+                      readOnly={emailLocked}
+                      style={emailLocked ? { backgroundColor: "#e2e8f0", color: "#888" } : undefined}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Phone Number <span style={{color: "#e53e3e"}}>*</span>
+                      <span style={{ display: "block", fontSize: 12, color: "#718096" }}>
+                        Enter a valid 10-digit phone number.
+                      </span>
+                    </label>
+                    <Input
+                      type="tel"
+                      name="phno"
+                      value={formData.phno}
+                      onChange={handleChange}
+                      required
+                      maxLength={10}
+                      minLength={10}
+                    />
+                  </div>
+                  <div className="md:col-span-2 flex items-center gap-4">
+                    <div>
+                      {profilePicPreview ? (
+                        <img
+                          src={profilePicPreview}
+                          alt="Profile preview"
+                          className="h-16 w-16 rounded-full object-cover"
+                        />
+                      ) : (
+                        <span className="h-16 w-16 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
+                          <svg
+                            className="h-10 w-10 text-gray-300"
+                            fill="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
+                          </svg>
+                        </span>
+                      )}
+                    </div>
+                    <label className="block">
+                      <span className="sr-only">Upload photo</span>
+                      <input
+                        type="file"
+                        className="block w-full text-sm text-gray-600
+                          file:mr-4 file:py-2 file:px-4
+                          file:rounded-full file:border-0
+                          file:text-sm file:font-semibold
+                          file:bg-blue-50 file:text-blue-700
+                          hover:file:bg-blue-100"
+                        onChange={handleProfilePicChange}
+                        accept="image/*"
+                      />
+                      <span className="text-xs text-gray-400">
+                        JPEG or PNG, max 5MB
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              </section>
+              {/* Professional Details */}
+              <section>
+                <h3 className="text-xl font-bold text-blue-800 mb-2">
+                  Professional Details
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Professional Title
+                    </label>
+                    <Input
+                      type="text"
+                      name="title"
+                      value={formData.title}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Area of Expertise
+                    </label>
+                    <Input
+                      type="text"
+                      name="area_of_expertise"
+                      value={formData.area_of_expertise}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      College/University
+                    </label>
+                    <Input
+                      type="text"
+                      name="college"
+                      value={formData.college}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Years of Experience
+                    </label>
+                    <Input
+                      type="number"
+                      name="years_of_experience"
+                      min="0"
+                      value={formData.years_of_experience}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      LinkedIn Profile URL
+                    </label>
+                    <Input
+                      type="url"
+                      name="linkedin_url"
+                      value={formData.linkedin_url}
+                      onChange={handleChange}
+                      placeholder="https://linkedin.com/in/your-profile"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Skills
+                    </label>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {skillOptions.map((skill) => (
+                        <SkillTag
+                          key={skill}
+                          skill={skill}
+                          selected={formData.skills.includes(skill)}
+                          onClick={() => toggleSkill(skill)}
+                        />
+                      ))}
+                    </div>
+                    {formData.skills.length === 0 && (
+                      <p className="mt-1 text-sm text-red-600">
+                        Please select at least one skill
+                      </p>
+                    )}
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Professional Bio
+                    </label>
+                    <Textarea
+                      name="description"
+                      rows={3}
+                      value={formData.description}
+                      onChange={handleChange}
+                      required
+                      placeholder="Tell us about your professional journey and why you want to be a mentor..."
+                    />
+                  </div>
+                </div>
+              </section>
+              {/* Availability */}
+              <section>
+                <h3 className="text-xl font-bold text-blue-800 mb-2">
+                  Availability
+                </h3>
+                <div className="space-y-4">
+                  {daysOfWeek.map((day) => (
+                    <div
+                      key={day}
+                      className="bg-blue-50 rounded-lg p-4 flex flex-col gap-2 border border-blue-100 shadow-sm"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <input
+                            id={`enable-${day}`}
+                            name={`enable-${day}`}
+                            type="checkbox"
+                            checked={weeklySchedule[day].enabled}
+                            onChange={() => handleToggleDay(day)}
+                            className="h-4 w-4 rounded border-blue-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <label
+                            htmlFor={`enable-${day}`}
+                            className="block text-base font-medium text-blue-900"
+                          >
+                            {day}
+                          </label>
+                        </div>
+                        <span
+                          className={`text-xs px-2 py-1 rounded-full ${
+                            weeklySchedule[day].enabled
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-200 text-gray-500"
+                          }`}
+                        >
+                          {weeklySchedule[day].enabled
+                            ? "Available"
+                            : "Unavailable"}
+                        </span>
+                      </div>
+                      {weeklySchedule[day].enabled && (
+                        <div className="flex flex-col gap-2">
+                          <div className="flex flex-wrap gap-2">
+                            {weeklySchedule[day].slots.map((slot, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-center gap-1"
+                              >
+                                <TimeSlotDisplay
+                                  start={slot.start}
+                                  end={slot.end}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveSlot(day, idx)}
+                                  className="text-red-400 hover:text-red-600 p-0.5"
+                                >
+                                  <svg
+                                    className="h-4 w-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M6 18L18 6M6 6l12 12"
+                                    />
+                                  </svg>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-500">
+                                Start
+                              </label>
+                              <TimePicker
+                                value={weeklySchedule[day].start}
+                                onChange={(v) =>
+                                  handleTimeChange(day, "start", v)
+                                }
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-500">
+                                End
+                              </label>
+                              <TimePicker
+                                value={weeklySchedule[day].end}
+                                onChange={(v) => handleTimeChange(day, "end", v)}
+                              />
+                            </div>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className="mt-4"
+                              onClick={() => handleAddTimeSlot(day)}
+                            >
+                              Add Slot
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+              {/* Submit */}
+              <div className="flex justify-end pt-6">
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="px-8 py-3 text-lg font-bold"
+                >
+                  {loading ? "Submitting..." : "Submit Application"}
+                </Button>
               </div>
-
-              <Button
-                type="submit"
-                className="w-full bg-gradient-to-r from-blue-500 to-green-400 hover:from-blue-600 hover:to-green-500 font-semibold text-lg py-6 rounded-xl mt-4"
-                disabled={loading || authenticating}
-              >
-                {loading
-                  ? "Submitting..."
-                  : authenticating
-                  ? "Sending authentication email..."
-                  : "Submit Application"}
-              </Button>
             </form>
           )}
         </div>
