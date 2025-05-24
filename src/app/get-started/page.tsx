@@ -35,7 +35,7 @@ export default function GetStartedPage() {
                     alt="Mentee"
                     layout="fill"
                     objectFit="cover"
-                    data-ai-hint="person learning"
+                    data-ai-hint="student learning"
                   />
                 </div>
                 <CardTitle className="text-2xl font-semibold">I&apos;m a Mentee</CardTitle>
@@ -45,7 +45,7 @@ export default function GetStartedPage() {
                   Looking for guidance from industry professionals to accelerate my career growth.
                 </p>
                 <Button size="lg" className="w-full mt-auto" asChild>
-                  <Link href="/signup?role=mentee">Sign Up as a Mentee</Link>
+                  <Link href="https://career-dive.netlify.app/" target="_blank" rel="noopener noreferrer">Sign Up as a Mentee</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -58,7 +58,7 @@ export default function GetStartedPage() {
                     alt="Mentor"
                     layout="fill"
                     objectFit="cover"
-                    data-ai-hint="expert guidance"
+                    data-ai-hint="professional teaching"
                   />
                 </div>
                 <CardTitle className="text-2xl font-semibold">I&apos;m a Mentor</CardTitle>
@@ -68,7 +68,7 @@ export default function GetStartedPage() {
                   Ready to share my expertise and guide individuals on their professional journey.
                 </p>
                 <Button size="lg" className="w-full mt-auto" variant="secondary" asChild>
-                  <Link href="/signup?role=mentor">Sign Up as a Mentor</Link>
+                  <Link href="/signup-mentor">Sign Up as a Mentor</Link>
                 </Button>
               </CardContent>
             </Card>
