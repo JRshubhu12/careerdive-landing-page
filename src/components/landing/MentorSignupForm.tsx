@@ -242,13 +242,12 @@ export function MentorSignupForm() {
     
     const { error: insertError } = await supabase
       .from('mentors')
-      .insert([dataToInsert])
-      .select();
+      .insert([dataToInsert]); // Removed .select()
 
     setIsSubmitting(false);
 
     if (insertError) {
-      console.error("Supabase mentor insert error:", insertError);
+      console.error("Supabase mentor insert error object:", JSON.stringify(insertError, null, 2)); // Detailed logging
       toast({
         title: "Error Saving Profile",
         description: insertError.message || "Could not save your mentor details. Please try again.",
@@ -628,6 +627,4 @@ function DayAvailabilityControl({ day, control, form }: DayAvailabilityControlPr
     </Card>
   );
 }
-    
-
     
