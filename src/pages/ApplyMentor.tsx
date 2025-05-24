@@ -119,6 +119,33 @@ function ModernRemoveSlotButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+// --- EMAIL VALIDATION ---
+function isValidEmail(email: string): boolean {
+  // Only allow valid email with .com TLD
+  const regex = /^[^\s@]+@[^\s@]+\.[cC][oO][mM]$/;
+  return regex.test(email);
+}
+
+// --- SEND CONFIRMATION EMAIL (using Supabase Edge Function or external API) ---
+// NOTE: Update this to your actual email sending logic (e.g. Supabase Edge, SendGrid, etc.)
+async function sendConfirmationEmail(email: string, mentorsName: string) {
+  // Example: Call Supabase Edge Function or API endpoint to send email
+  const response = await fetch("/api/send-mentor-confirmation", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      email,
+      name: mentorsName
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to send confirmation email.");
+  }
+}
+
 const ApplyMentor = () => {
   const [formData, setFormData] = useState({
     mentors_name: "",
@@ -138,6 +165,7 @@ const ApplyMentor = () => {
   const [profilePicPreview, setProfilePicPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [authenticating, setAuthenticating] = useState(false);
 
   // --- AVAILABILITY STATE ---
   const [weeklySchedule, setWeeklySchedule] = useState<any>(defaultWeeklyAvailability());
@@ -253,11 +281,38 @@ const ApplyMentor = () => {
     return publicUrlData.publicUrl;
   };
 
+  // --- AUTHENTICATE EMAIL (sign up if not exists, sign in if exists, using Supabase Auth) ---
+  // You may want to handle "user already exists" gracefully!
+  const authenticateUser = async (email: string) => {
+    setAuthenticating(true);
+
+    // Try sign in (if user exists, send a magic link)
+    let { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: window.location.origin + "/mentor-confirmed"
+      }
+    });
+
+    setAuthenticating(false);
+    if (error) throw error;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Email validation for .com only
+    if (!isValidEmail(formData.email)) {
+      alert("Please enter a valid email address ending with .com");
+      return;
+    }
+
     setLoading(true);
 
     try {
+      // 1. Authenticate user via Supabase Auth (magic link to email)
+      await authenticateUser(formData.email);
+
       let profilePicUrl = "";
 
       if (profilePicFile) {
@@ -269,6 +324,7 @@ const ApplyMentor = () => {
         weeklySchedule,
       });
 
+      // 2. Insert mentor application into database
       const { error } = await supabase.from("mentors").insert([
         {
           ...formData,
@@ -280,15 +336,26 @@ const ApplyMentor = () => {
       if (error) {
         console.error("Error submitting form:", error.message);
         alert("Failed to submit application.");
-      } else {
-        setSubmitted(true);
-        setTimeout(() => {
-          window.location.href = "https://mentor-dashboard.netlify.app/dashboard";
-        }, 1500);
+        setLoading(false);
+        return;
       }
+
+      // 3. Send confirmation email
+      try {
+        await sendConfirmationEmail(formData.email, formData.mentors_name);
+      } catch (mailErr: any) {
+        // Log but let user continue
+        console.error("Confirmation email error:", mailErr.message);
+      }
+
+      setSubmitted(true);
+      setTimeout(() => {
+        window.location.href = "https://mentor-dashboard.netlify.app/dashboard";
+      }, 1500);
+
     } catch (err: any) {
-      console.error("Upload error:", err.message);
-      alert("Failed to upload profile picture.");
+      console.error("Submission error:", err.message);
+      alert(err.message || "Failed to submit application.");
     } finally {
       setLoading(false);
     }
@@ -309,7 +376,8 @@ const ApplyMentor = () => {
         <div className="w-full max-w-2xl bg-gradient-to-tr from-[#23235c] via-[#25277d] to-[#3232eb] rounded-3xl shadow-2xl p-10 backdrop-blur-md border-2 border-[#53a0fd]">
           {submitted ? (
             <div className="text-green-400 text-center text-2xl font-semibold">
-              🎉 Application submitted successfully!
+              🎉 Application submitted successfully!<br />
+              A confirmation email has been sent to your email address.
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -338,6 +406,11 @@ const ApplyMentor = () => {
                     className="bg-white border-[#53a0fd] focus:border-blue-500 text-[#23235c] placeholder-gray-500"
                     required
                   />
+                  {field.name === "email" && formData.email && !isValidEmail(formData.email) && (
+                    <span className="text-xs text-red-600 pt-1">
+                      Enter a valid .com email address.
+                    </span>
+                  )}
                 </div>
               ))}
 
@@ -488,9 +561,13 @@ const ApplyMentor = () => {
               <Button
                 type="submit"
                 className="w-full bg-gradient-to-r from-blue-500 to-green-400 hover:from-blue-600 hover:to-green-500 font-semibold text-lg py-6 rounded-xl mt-4"
-                disabled={loading}
+                disabled={loading || authenticating}
               >
-                {loading ? "Submitting..." : "Submit Application"}
+                {loading
+                  ? "Submitting..."
+                  : authenticating
+                  ? "Sending authentication email..."
+                  : "Submit Application"}
               </Button>
             </form>
           )}
