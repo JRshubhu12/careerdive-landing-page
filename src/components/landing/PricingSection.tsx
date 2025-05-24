@@ -3,49 +3,50 @@ import { PricingCard } from './PricingCard';
 
 const pricingTiers = [
   {
-    tierName: "Basic",
-    price: "Free",
-    description: "Get started with essential mentorship features.",
+    tierName: "Starter",
+    price: "₹499",
+    priceFrequency: "/month",
+    description: "Ideal for focused guidance and getting started.",
     features: [
+      "30 mins session per month",
       "Access to mentor/mentee profiles",
-      "Limited messaging",
       "Basic search filters",
       "Community forum access",
     ],
-    ctaText: "Sign Up for Free",
-    ctaLink: "/signup?plan=basic",
+    ctaText: "Sign Up for Starter",
+    ctaLink: "/signup?plan=starter",
   },
   {
-    tierName: "Premium",
-    price: "$19",
+    tierName: "Pro",
+    price: "₹799",
     priceFrequency: "/month",
-    description: "Unlock full access and advanced tools for success.",
+    description: "Comprehensive support for accelerated growth.",
     features: [
+      "60 mins session per month",
       "Unlimited access to mentors/mentees",
       "Unlimited messaging & video calls",
       "Advanced search filters",
       "Priority matching",
       "Progress tracking tools",
-      "Priority support",
     ],
-    ctaText: "Choose Premium",
-    ctaLink: "/signup?plan=premium",
+    ctaText: "Choose Pro",
+    ctaLink: "/signup?plan=pro",
     isHighlighted: true,
   },
   {
-    tierName: "Enterprise",
-    price: "Custom",
-    description: "Tailored solutions for organizations and teams.",
+    tierName: "Premium Plus",
+    price: "₹1299",
+    priceFrequency: "/month",
+    description: "Extensive mentorship for maximum impact and results.",
     features: [
-      "Custom onboarding for teams",
-      "Dedicated account manager",
-      "Admin dashboard & reporting",
-      "Integration capabilities",
-      "Customized workshops & events",
-      "Volume discounts",
+      "2 hours session per month",
+      "All Pro features included",
+      "Dedicated success manager",
+      "Exclusive workshops & resources",
+      "Priority support",
     ],
-    ctaText: "Contact Us",
-    ctaLink: "/contact-sales",
+    ctaText: "Choose Premium Plus",
+    ctaLink: "/signup?plan=premium-plus",
   },
 ];
 
@@ -74,7 +75,7 @@ export function PricingSection() {
         ))}
       </div>
        <p className="text-center text-sm text-muted-foreground mt-8">
-        All prices are in USD. You can cancel or change your plan anytime.
+        All prices are in INR. You can cancel or change your plan anytime.
       </p>
     </SectionWrapper>
   );

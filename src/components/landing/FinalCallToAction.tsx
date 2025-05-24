@@ -13,7 +13,7 @@ export function FinalCallToAction() {
         It&apos;s free to get started!
       </p>
       <Button size="lg" className="px-10 py-6 text-lg" asChild>
-        <Link href="/signup">Join CareerConnect Now</Link>
+        <Link href="/get-started">Join CareerConnect Now</Link>
       </Button>
     </SectionWrapper>
   );

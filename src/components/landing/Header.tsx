@@ -19,17 +19,17 @@ export function Header() {
           <Button variant="ghost" asChild>
             <Link href="#testimonials">Testimonials</Link>
           </Button>
-          <Button variant="outline" asChild className="ml-4">
+          {/* <Button variant="outline" asChild className="ml-4">
             <Link href="/login">Sign In</Link>
-          </Button>
-          <Button asChild>
-            <Link href="/signup">Get Started</Link>
+          </Button> */}
+          <Button asChild className="ml-4">
+            <Link href="/get-started">Get Started</Link>
           </Button>
         </nav>
         <div className="md:hidden">
           {/* Mobile menu can be added here if needed */}
           <Button asChild>
-            <Link href="/signup">Sign Up</Link>
+            <Link href="/get-started">Get Started</Link>
           </Button>
         </div>
       </div>

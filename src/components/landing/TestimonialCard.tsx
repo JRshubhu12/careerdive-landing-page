@@ -35,7 +35,7 @@ export function TestimonialCard({ quote, name, role, avatarUrl, rating = 5 }: Te
             width={48}
             height={48}
             className="rounded-full mr-4"
-            data-ai-hint="person professional"
+            data-ai-hint="professional headshot"
           />
           <div>
             <p className="font-semibold text-primary">{name}</p>

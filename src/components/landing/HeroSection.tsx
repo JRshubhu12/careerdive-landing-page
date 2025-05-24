@@ -16,10 +16,10 @@ export function HeroSection() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
             <Button size="lg" asChild>
-              <Link href="/find-mentor">Find a Mentor</Link>
+              <Link href="/get-started">Find a Mentor</Link>
             </Button>
             <Button size="lg" variant="secondary" asChild>
-              <Link href="/become-mentor">Become a Mentor</Link>
+              <Link href="/get-started">Become a Mentor</Link>
             </Button>
           </div>
         </div>
@@ -30,7 +30,7 @@ export function HeroSection() {
             layout="fill"
             objectFit="cover"
             priority
-            data-ai-hint="mentorship team collaboration"
+            data-ai-hint="professionals collaborating online"
           />
            <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"></div>
         </div>
