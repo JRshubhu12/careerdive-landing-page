@@ -25,15 +25,18 @@ export function HeroSection() {
           </div>
         </div>
         <div className="relative aspect-video rounded-xl overflow-hidden shadow-2xl">
-          <Image
-            src="https://placehold.co/1200x675.png"
-            alt="Mentor and mentee collaborating"
-            layout="fill"
-            objectFit="cover"
-            priority
-            data-ai-hint="mentor meeting"
-          />
-           <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent"></div>
+          <div style={{ position: 'relative', width: '100%', height: '400px' }}>
+            <Image
+              src="https://i.ibb.co/hxcQM7kn/header.jpg"
+              alt="Mentor and mentee collaborating"
+              fill
+              style={{ objectFit: 'cover' }}
+              priority
+            />
+
+
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent"></div>
         </div>
       </div>
     </SectionWrapper>
