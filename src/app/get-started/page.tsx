@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import type { Metadata } from 'next';
+// import type { Metadata } from 'next'; // Metadata cannot be dynamic in client components this way
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SectionWrapper } from '@/components/landing/SectionWrapper';
@@ -12,7 +12,7 @@ import { Footer } from '@/components/landing/Footer';
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
-// export const metadata: Metadata = { // Metadata cannot be dynamic in client components this way
+// export const metadata: Metadata = { 
 //   title: 'Get Started - CareerDive',
 //   description: 'Choose your path on CareerDive. Sign up as a mentor or mentee.',
 // };
@@ -91,7 +91,7 @@ export default function GetStartedPage() {
                   Looking for guidance from industry professionals to accelerate my career growth.
                 </p>
                 <Button size="lg" className="w-full mt-auto" asChild>
-                  <Link href="https://career-dive.netlify.app/" target="_blank" rel="noopener noreferrer">Sign Up as a Mentee</Link>
+                  <Link href="https://career-dive-student.netlify.app/auth/signup" target="_blank" rel="noopener noreferrer">Sign Up as a Mentee</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -126,5 +126,3 @@ export default function GetStartedPage() {
     </div>
   );
 }
-
-    
