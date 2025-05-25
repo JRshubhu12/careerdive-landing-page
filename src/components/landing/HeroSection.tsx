@@ -20,7 +20,7 @@ export function HeroSection() {
               <Link href="/get-started">Find a Mentor</Link>
             </Button>
             <Button size="lg" variant="secondary" asChild>
-              <Link href="/get-started">Become a Mentor</Link>
+              <Link href="/signup-mentor">Become a Mentor</Link>
             </Button>
           </div>
         </div>
@@ -32,9 +32,8 @@ export function HeroSection() {
               fill
               style={{ objectFit: 'cover' }}
               priority
+              data-ai-hint="mentor meeting"
             />
-
-
           </div>
           <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent"></div>
         </div>
