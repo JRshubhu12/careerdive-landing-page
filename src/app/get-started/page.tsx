@@ -28,7 +28,7 @@ export default function GetStartedPage() {
       if (mentorEmail) {
         setIsMentor(true); // Set state for completeness, though redirect happens
         // Redirect to mentor dashboard
-        window.location.href = 'https://mentor-dashboard.netlify.app/dashboard';
+        window.location.href = 'https://mentor-dashboard.netlify.app/auth';
         // Keep isLoading true if redirecting
         return; 
       }

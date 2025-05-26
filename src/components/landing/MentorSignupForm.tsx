@@ -264,7 +264,7 @@ export function MentorSignupForm() {
         localStorage.setItem('careerDiveMentorEmail', data.email);
         // Redirect to mentor dashboard
         if (typeof window !== "undefined") {
-          window.location.href = 'https://mentor-dashboard.netlify.app/dashboard';
+          window.location.href = 'https://mentor-dashboard.netlify.app/auth';
         }
       }
 
