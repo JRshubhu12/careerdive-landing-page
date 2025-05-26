@@ -19,7 +19,7 @@ export default function Home() {
       const mentorEmail = localStorage.getItem('careerDiveMentorEmail');
       if (mentorEmail) {
         // Redirect to mentor dashboard
-        window.location.href = 'https://mentor-dashboard.netlify.app/auth';
+        window.location.href = 'https://mentor-dashboard.netlify.app/dashboard';
         // Keep isLoading true if redirecting to avoid rendering the page
         return;
       }

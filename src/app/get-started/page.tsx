@@ -18,21 +18,21 @@ import { Loader2 } from 'lucide-react';
 // };
 
 export default function GetStartedPage() {
-  const [isMentor, setIsMentor] = useState(false);
+  const [isMentor, setIsMentor] = useState(false); // This state might not be used actively if redirecting
   const [isLoading, setIsLoading] = useState(true);
-  const [pageTitle, setPageTitle] = useState('Get Started - CareerDive');
+  // const [pageTitle, setPageTitle] = useState('Get Started - CareerDive'); // If dynamic title needed
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const mentorEmail = localStorage.getItem('careerDiveMentorEmail');
       if (mentorEmail) {
-        setIsMentor(true);
+        setIsMentor(true); // Set state for completeness, though redirect happens
         // Redirect to mentor dashboard
-        window.location.href = 'https://mentor-dashboard.netlify.app/auth';
+        window.location.href = 'https://mentor-dashboard.netlify.app/dashboard';
         // Keep isLoading true if redirecting
         return; 
       }
-      setPageTitle('Get Started - CareerDive');
+      // setPageTitle('Get Started - CareerDive');
     }
     setIsLoading(false);
   }, []);

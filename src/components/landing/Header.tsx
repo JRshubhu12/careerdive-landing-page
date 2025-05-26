@@ -20,7 +20,7 @@ export function Header() {
     setIsLoading(false);
   }, []);
 
-  const getStartedLink = isMentor ? "https://mentor-dashboard.netlify.app/auth" : "/get-started";
+  const getStartedLink = isMentor ? "https://mentor-dashboard.netlify.app/dashboard" : "/get-started";
   const getStartedText = isMentor ? "Login to your Dashboard" : "Get Started";
 
   return (

@@ -64,7 +64,9 @@ const weeklyScheduleSchema = z.object(
           const slotA = daySchedule.slots[i];
           const slotB = daySchedule.slots[j];
           if (Math.max(parseInt(slotA.start.replace(":", "")), parseInt(slotB.start.replace(":", ""))) < Math.min(parseInt(slotA.end.replace(":", "")), parseInt(slotB.end.replace(":", "")))) {
-            toast({ variant: "destructive", title: "Error", description: `Overlapping slots on ${day}. Please correct.`});
+            // Do not call toast directly in refine, as it's a validation function.
+            // Return false to indicate validation failure. The message here can be generic.
+            // Specific toast messages can be handled in the onSubmit handler if needed.
             return false; // Overlapping slots
           }
         }
@@ -72,7 +74,7 @@ const weeklyScheduleSchema = z.object(
     }
   }
   return true;
-}, { message: "Time slots within the same day cannot overlap." });
+}, { message: "Time slots within the same day cannot overlap. Please correct." });
 
 
 const predefinedSkills = [
@@ -151,32 +153,39 @@ export function MentorSignupForm() {
     setIsSubmitting(true);
     let authUserId: string | null = null;
     let authErrorOccurred = false;
+    let authErrorMessage = "Could not initiate sign up. Please try again.";
 
     try {
       const { data: authData, error: authError } = await supabase.auth.signInWithOtp({
         email: data.email,
         options: {
           shouldCreateUser: true,
-          emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined, // Or your specific confirmation page
+          emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined, 
         },
       });
 
       if (authError) {
         console.error("Supabase Auth Error (signInWithOtp):", JSON.stringify(authError, null, 2));
-        toast({
-          variant: "destructive",
-          title: "Authentication Failed",
-          description: authError.message || "Could not initiate sign up. Please try again.",
-        });
         authErrorOccurred = true;
-         // If status is 500 and code is "unexpected_failure", it's an internal Supabase error.
+        authErrorMessage = authError.message || authErrorMessage;
+        
+        // If it's an unexpected_failure, we'll log it and proceed, 
+        // but the user won't have an auth.users entry created for this attempt.
         if (authError.status === 500 && (authError as any).code === "unexpected_failure") {
-           console.warn("Supabase returned 'unexpected_failure'. Proceeding with profile save attempt.");
-        } else if (authError.message.includes("User already registered")) {
-          // This case might not happen with signInWithOtp if it sends link to existing user
+           console.warn("Supabase returned 'unexpected_failure' during OTP sign-in. Proceeding with profile save attempt.");
+           toast({
+            variant: "destructive",
+            title: "Authentication Issue (OTP)",
+            description: "There was an unexpected issue sending the confirmation email. Your profile will still be saved.",
+          });
         } else {
-          setIsSubmitting(false);
-          // For other auth errors, we might not want to proceed. But per request, we are.
+           toast({ // For other auth errors
+            variant: "destructive",
+            title: "Authentication Failed (OTP)",
+            description: authErrorMessage,
+          });
+          // For general auth errors (not unexpected_failure), we might reconsider proceeding,
+          // but current logic is to proceed with profile save.
         }
       } else if (authData?.user) {
         authUserId = authData.user.id;
@@ -208,9 +217,7 @@ export function MentorSignupForm() {
             title: "Profile Picture Upload Failed",
             description: uploadError.message,
           });
-          // Decide if you want to stop submission or continue without profile pic
-          // setIsSubmitting(false); // Uncomment to stop if upload fails
-          // return;
+          // Continue without profile pic if upload fails
         } else if (uploadData?.path) {
           const { data: urlData } = supabase.storage.from("profile-pictures").getPublicUrl(uploadData.path);
           publicProfilePicUrl = urlData?.publicUrl;
@@ -220,10 +227,10 @@ export function MentorSignupForm() {
       const { profile_pic_file, ...restOfData } = data;
       const mentorDataToSave = {
         ...restOfData,
-        user_id: authUserId, // Can be null if auth step had issues but we proceed
+        user_id: authUserId, 
         profile_pic_url: publicProfilePicUrl,
         years_of_experience: typeof data.years_of_experience === 'number' ? data.years_of_experience : null,
-        availability: JSON.stringify({ weeklySchedule: data.availability })
+        availability: JSON.stringify({ weeklySchedule: data.availability }) // Ensure data is stringified
       };
 
       const { error: insertError } = await supabase
@@ -238,21 +245,26 @@ export function MentorSignupForm() {
           description: `Database error: ${insertError.message}. Please try again.`,
         });
       } else {
-        if (!authErrorOccurred) { // Only show this if auth didn't also show a specific error.
-            toast({
-                title: "Profile Saved!",
-                description: "Your mentor profile has been successfully submitted.",
-            });
-        } else {
+        if (authErrorOccurred && authError?.status === 500 && (authError as any).code === "unexpected_failure") {
              toast({
                 title: "Profile Saved (Auth Issue)",
-                description: "Your mentor profile was saved, but there was an issue with account creation/login. Please check your email or try logging in later.",
+                description: "Your mentor profile was saved, but there was an issue sending the confirmation email. Please check your email or try logging in later.",
+            });
+        } else if (authErrorOccurred) { // Other auth errors, but profile saved
+             toast({
+                title: "Profile Saved (Auth Failed)",
+                description: `Your mentor profile was saved, but authentication failed: ${authErrorMessage}`,
+            });
+        } else { // Auth succeeded (OTP sent) and profile saved
+            toast({
+                title: "Profile Saved & Confirmation Sent!",
+                description: "Your mentor profile has been submitted. Please check your email for a confirmation link.",
             });
         }
         localStorage.setItem('careerDiveMentorEmail', data.email);
         // Redirect to mentor dashboard
         if (typeof window !== "undefined") {
-          window.location.href = 'https://mentor-dashboard.netlify.app/auth';
+          window.location.href = 'https://mentor-dashboard.netlify.app/dashboard';
         }
       }
 
@@ -525,7 +537,6 @@ export function MentorSignupForm() {
                     Add Time Slot
                   </Button>
                    <FormMessage>
-                    {/* @ts-ignore TODO: Fix this type error if possible when accessing nested errors */}
                     {form.formState.errors.availability?.[day]?.slots?.message}
                   </FormMessage>
                 </div>
@@ -533,8 +544,7 @@ export function MentorSignupForm() {
             </div>
           ))}
            <FormMessage>
-            {/* @ts-ignore */}
-            {form.formState.errors.availability?.message}
+            {form.formState.errors.availability?.root?.message}
             </FormMessage>
         </div>
 
@@ -547,5 +557,3 @@ export function MentorSignupForm() {
     </Form>
   );
 }
-
-    
