@@ -2,10 +2,10 @@
 "use client";
 
 import * as React from "react";
-import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm, Controller, useFieldArray } from "react-hook-form";
 import * as z from "zod";
-
+import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -25,260 +25,246 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { toast } from "@/hooks/use-toast";
+import { Check, Loader2, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from '@/lib/supabaseClient';
-import { useToast } from "@/hooks/use-toast";
-import { Loader2, Trash2 } from "lucide-react";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-
-const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
-type DayOfWeek = typeof daysOfWeek[number];
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
 
 const timeOptions = Array.from({ length: 48 }, (_, i) => {
   const hours = Math.floor(i / 2);
-  const minutes = (i % 2) * 30;
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  const minutes = i % 2 === 0 ? "00" : "30";
+  return `${String(hours).padStart(2, "0")}:${minutes}`;
 });
 
-const predefinedSkills = [
-  "Career Counseling", 
-  "Technical Interview Prep", 
-  "Resume Review", 
-  "Leadership", 
-  "Product Management", 
-  "Software Engineering", 
-  "Data Science", 
-  "Machine Learning", 
-  "UX Design", 
-  "Entrepreneurship"
-];
+const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
 
-const timeSlotSchema = z.object({
-  start: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:MM)"),
-  end: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format (HH:MM)"),
-}).refine(data => data.end > data.start, {
+const slotSchema = z.object({
+  start: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format"),
+  end: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Invalid time format"),
+}).refine(data => data.start < data.end, {
   message: "End time must be after start time",
-  path: ["end"], 
+  path: ["end"],
 });
 
-const dayScheduleSchema = z.object({
+const daySchema = z.object({
   enabled: z.boolean(),
-  slots: z.array(timeSlotSchema),
-}).superRefine((data, ctx) => {
-  if (data.enabled && data.slots.length > 1) {
-    const sortedSlots = [...data.slots].sort((a, b) => a.start.localeCompare(b.start));
-    for (let i = 0; i < sortedSlots.length - 1; i++) {
-      if (sortedSlots[i].end > sortedSlots[i+1].start) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Time slots must not overlap.",
-          path: ["slots"],
-        });
-        break; 
-      }
-    }
-  }
+  slots: z.array(slotSchema),
 });
 
 const weeklyScheduleSchema = z.object(
-  daysOfWeek.reduce((acc, day) => {
-    acc[day] = dayScheduleSchema;
-    return acc;
-  }, {} as Record<DayOfWeek, typeof dayScheduleSchema>)
-);
+  Object.fromEntries(daysOfWeek.map(day => [day, daySchema])) as Record<typeof daysOfWeek[number], typeof daySchema>
+).refine(schedule => {
+  for (const day of daysOfWeek) {
+    const daySchedule = schedule[day];
+    if (daySchedule.enabled) {
+      for (let i = 0; i < daySchedule.slots.length; i++) {
+        for (let j = i + 1; j < daySchedule.slots.length; j++) {
+          const slotA = daySchedule.slots[i];
+          const slotB = daySchedule.slots[j];
+          if (Math.max(parseInt(slotA.start.replace(":", "")), parseInt(slotB.start.replace(":", ""))) < Math.min(parseInt(slotA.end.replace(":", "")), parseInt(slotB.end.replace(":", "")))) {
+            toast({ variant: "destructive", title: "Error", description: `Overlapping slots on ${day}. Please correct.`});
+            return false; // Overlapping slots
+          }
+        }
+      }
+    }
+  }
+  return true;
+}, { message: "Time slots within the same day cannot overlap." });
+
+
+const predefinedSkills = [
+  "Software Development", "Project Management", "Marketing", "Sales", "Data Science",
+  "Product Management", "UX/UI Design", "DevOps", "Cybersecurity", "AI/Machine Learning",
+  "Business Strategy", "Finance", "Human Resources", "Content Creation", "Public Speaking"
+];
 
 const mentorSignupSchema = z.object({
   mentors_name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  email: z.string().min(1, "Email is required.").email({ message: "Please enter a valid email." }),
-  title: z.string().optional(),
-  area_of_expertise: z.string().optional(),
+  title: z.string().min(2, { message: "Title must be at least 2 characters." }),
+  area_of_expertise: z.string().min(3, { message: "Area of expertise is required." }),
   college: z.string().optional(),
-  years_of_experience: z.preprocess(
-    (val) => (val === "" || val === undefined || val === null ? undefined : Number(val)),
-    z.number().int().min(0, "Years of experience must be 0 or more.").optional().nullable()
-  ),
+  years_of_experience: z.coerce.number().int().min(0, "Years of experience cannot be negative.").optional().or(z.literal("")),
   description: z.string().optional(),
+  email: z.string().email({ message: "Invalid email address." }),
   phno: z.string().optional(),
-  linkedin_url: z.string().url({ message: "Must be a valid LinkedIn URL" }).optional().or(z.literal('')).nullable(),
+  linkedin_url: z.string().url({ message: "Invalid LinkedIn URL." }).optional().or(z.literal("")),
+  skills: z.array(z.string()).min(1, { message: "Please select at least one skill." }),
   profile_pic_file: z
-    .instanceof(File)
+    .instanceof(File, { message: "Profile picture is required." })
     .optional()
-    .nullable()
-    .refine((file) => !file || file.size <= MAX_FILE_SIZE, `Max image size is 5MB.`)
-    .refine(
-      (file) => !file || ACCEPTED_IMAGE_TYPES.includes(file.type),
-      "Only .jpg, .png, .webp, .gif formats are supported."
-    ),
-  skills: z.array(z.string()).min(1, "Please select at least one skill."),
-  gender: z.enum(['Male', 'Female', 'Other', 'Prefer not to say']).optional(),
-  availability: weeklyScheduleSchema.optional().nullable(),
+    .refine(file => !file || file.size <= MAX_FILE_SIZE, `Max file size is 5MB.`)
+    .refine(file => !file || ACCEPTED_IMAGE_TYPES.includes(file.type), "Only .jpg, .jpeg, .png, .webp and .gif formats are accepted."),
+  availability: weeklyScheduleSchema,
 });
 
 type MentorSignupFormValues = z.infer<typeof mentorSignupSchema>;
 
-const defaultAvailability = daysOfWeek.reduce((acc, day) => {
-  acc[day] = { enabled: false, slots: [] };
-  return acc;
-}, {} as Record<DayOfWeek, { enabled: boolean; slots: { start: string; end: string }[] }>);
+const defaultAvailability = Object.fromEntries(
+  daysOfWeek.map(day => [day, { enabled: false, slots: [] }])
+) as Record<typeof daysOfWeek[number], { enabled: boolean; slots: { start: string; end: string }[] }>;
 
 
 export function MentorSignupForm() {
-  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const form = useForm<MentorSignupFormValues>({
     resolver: zodResolver(mentorSignupSchema),
     defaultValues: {
       mentors_name: "",
-      email: "",
       title: "",
       area_of_expertise: "",
       college: "",
       years_of_experience: undefined,
       description: "",
+      email: "",
       phno: "",
       linkedin_url: "",
-      profile_pic_file: null,
       skills: [],
-      gender: undefined,
+      profile_pic_file: undefined,
       availability: defaultAvailability,
     },
   });
 
-  const { control } = form;
+  const { fields: mondayFields, append: appendMonday, remove: removeMonday } = useFieldArray({ control: form.control, name: "availability.Monday.slots" });
+  const { fields: tuesdayFields, append: appendTuesday, remove: removeTuesday } = useFieldArray({ control: form.control, name: "availability.Tuesday.slots" });
+  const { fields: wednesdayFields, append: appendWednesday, remove: removeWednesday } = useFieldArray({ control: form.control, name: "availability.Wednesday.slots" });
+  const { fields: thursdayFields, append: appendThursday, remove: removeThursday } = useFieldArray({ control: form.control, name: "availability.Thursday.slots" });
+  const { fields: fridayFields, append: appendFriday, remove: removeFriday } = useFieldArray({ control: form.control, name: "availability.Friday.slots" });
+  const { fields: saturdayFields, append: appendSaturday, remove: removeSaturday } = useFieldArray({ control: form.control, name: "availability.Saturday.slots" });
+  const { fields: sundayFields, append: appendSunday, remove: removeSunday } = useFieldArray({ control: form.control, name: "availability.Sunday.slots" });
 
-  async function onSubmit(values: MentorSignupFormValues) {
+  const dayFieldArrays = {
+    Monday: { fields: mondayFields, append: appendMonday, remove: removeMonday },
+    Tuesday: { fields: tuesdayFields, append: appendTuesday, remove: removeTuesday },
+    Wednesday: { fields: wednesdayFields, append: appendWednesday, remove: removeWednesday },
+    Thursday: { fields: thursdayFields, append: appendThursday, remove: removeThursday },
+    Friday: { fields: fridayFields, append: appendFriday, remove: removeFriday },
+    Saturday: { fields: saturdayFields, append: appendSaturday, remove: removeSaturday },
+    Sunday: { fields: sundayFields, append: appendSunday, remove: removeSunday },
+  };
+
+
+  async function onSubmit(data: MentorSignupFormValues) {
     setIsSubmitting(true);
     let authUserId: string | null = null;
-    let uploadedProfilePicUrl: string | null = null;
-    let authFailed = false;
-    let authFailureMessage = "";
+    let authErrorOccurred = false;
 
-    // Step 1: Supabase Authentication (OTP/Magic Link)
-    const { data: authData, error: authError } = await supabase.auth.signInWithOtp({
-      email: values.email,
-      options: {
-        shouldCreateUser: true,
+    try {
+      const { data: authData, error: authError } = await supabase.auth.signInWithOtp({
+        email: data.email,
+        options: {
+          shouldCreateUser: true,
+          emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined, // Or your specific confirmation page
+        },
+      });
+
+      if (authError) {
+        console.error("Supabase Auth Error (signInWithOtp):", JSON.stringify(authError, null, 2));
+        toast({
+          variant: "destructive",
+          title: "Authentication Failed",
+          description: authError.message || "Could not initiate sign up. Please try again.",
+        });
+        authErrorOccurred = true;
+         // If status is 500 and code is "unexpected_failure", it's an internal Supabase error.
+        if (authError.status === 500 && (authError as any).code === "unexpected_failure") {
+           console.warn("Supabase returned 'unexpected_failure'. Proceeding with profile save attempt.");
+        } else if (authError.message.includes("User already registered")) {
+          // This case might not happen with signInWithOtp if it sends link to existing user
+        } else {
+          setIsSubmitting(false);
+          // For other auth errors, we might not want to proceed. But per request, we are.
+        }
+      } else if (authData?.user) {
+        authUserId = authData.user.id;
+        toast({
+          title: "Confirmation Email Sent",
+          description: "Please check your email for a confirmation link to complete your signup.",
+        });
+      } else if (authData && !authData.user && authData.session === null){
+         // This case means OTP sent, user may or may not exist yet.
+         toast({
+          title: "Confirmation Email Sent",
+          description: "Please check your email for a link to complete your signup.",
+        });
       }
-    });
 
-    if (authError) {
-      console.error("Supabase Auth Error (signInWithOtp):", JSON.stringify(authError, null, 2));
-      authFailed = true;
-      authFailureMessage = `Authentication Error: ${authError.message || "Could not initiate account creation. Please verify your Supabase project settings (e.g., Site URL, email provider) and check Supabase logs."}`;
-      // We will proceed to attempt saving profile data even if auth fails.
-      // authUserId will remain null.
-    } else if (authData?.user) {
-      authUserId = authData.user.id;
-    } else {
-      // This case might occur if OTP is sent but user object isn't immediately available.
-      // For simplicity, we'll treat authUserId as null for now if no user object is returned.
-      console.warn("signInWithOtp initiated. User confirmation may be pending or user object not returned. Proceeding with null authUserId if applicable.");
-    }
 
-    // Step 2: Profile Picture Upload (if applicable)
-    if (values.profile_pic_file) {
-      const file = values.profile_pic_file;
-      const fileExt = file.name.split('.').pop();
-      // Use a generic path if authUserId is null, or a user-specific one if available.
-      const userSpecificPathSegment = authUserId || `unverified_${values.email.replace(/[^a-zA-Z0-9]/g, '_')}`;
-      const fileName = `${userSpecificPathSegment}_${Date.now()}.${fileExt}`;
-      const filePath = `${authUserId ? authUserId : 'public_uploads'}/${fileName}`; 
-
-      try {
-        const { error: uploadError } = await supabase.storage
-          .from('profile-pictures')
-          .upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: false, 
-          });
+      let publicProfilePicUrl: string | undefined = undefined;
+      if (data.profile_pic_file) {
+        const file = data.profile_pic_file;
+        const fileName = `${authUserId || 'unverified_user'}/${Date.now()}-${file.name}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from("profile-pictures")
+          .upload(fileName, file);
 
         if (uploadError) {
-          throw uploadError;
+          console.error("Supabase profile picture upload error:", uploadError);
+          toast({
+            variant: "destructive",
+            title: "Profile Picture Upload Failed",
+            description: uploadError.message,
+          });
+          // Decide if you want to stop submission or continue without profile pic
+          // setIsSubmitting(false); // Uncomment to stop if upload fails
+          // return;
+        } else if (uploadData?.path) {
+          const { data: urlData } = supabase.storage.from("profile-pictures").getPublicUrl(uploadData.path);
+          publicProfilePicUrl = urlData?.publicUrl;
         }
-
-        const { data: publicUrlData } = supabase.storage
-          .from('profile-pictures')
-          .getPublicUrl(filePath);
-        
-        if (publicUrlData) {
-          uploadedProfilePicUrl = publicUrlData.publicUrl;
-        } else {
-            throw new Error("Could not get public URL for uploaded image.");
-        }
-
-      } catch (error: any) {
-        console.error("Error uploading profile picture:", error);
-        toast({
-          title: "Profile Picture Upload Issue",
-          description: error.message || "Could not upload profile picture. It can be added later.",
-          variant: "default", // Not destructive as profile saving might still succeed
-        });
       }
-    }
 
-    // Step 3: Insert Mentor Data into 'mentors' table
-    const dataToInsert = {
-      mentors_name: values.mentors_name,
-      title: values.title || null,
-      area_of_expertise: values.area_of_expertise || null,
-      college: values.college || null,
-      years_of_experience: values.years_of_experience === undefined || isNaN(values.years_of_experience) ? null : values.years_of_experience,
-      description: values.description || null,
-      email: values.email, 
-      phno: values.phno || null,
-      linkedin_url: values.linkedin_url || null,
-      availability: values.availability ? JSON.stringify({ weeklySchedule: values.availability }) : null,
-      profile_pic_url: uploadedProfilePicUrl,
-      skills: values.skills,
-      gender: values.gender || null,
-      user_id: authUserId, // Will be null if auth failed or user object wasn't available
-    };
-    
-    let insertErrorObj = null;
-    try {
-        const { error: insertError } = await supabase
-        .from('mentors')
-        .insert([dataToInsert]);
-        if (insertError) throw insertError;
-    } catch (error: any) {
-        insertErrorObj = error;
-        console.error("Supabase mentor insert error object:", JSON.stringify(error, null, 2));
-    }
-    
+      const { profile_pic_file, ...restOfData } = data;
+      const mentorDataToSave = {
+        ...restOfData,
+        user_id: authUserId, // Can be null if auth step had issues but we proceed
+        profile_pic_url: publicProfilePicUrl,
+        years_of_experience: typeof data.years_of_experience === 'number' ? data.years_of_experience : null,
+        availability: JSON.stringify({ weeklySchedule: data.availability })
+      };
 
-    setIsSubmitting(false);
+      const { error: insertError } = await supabase
+        .from("mentors")
+        .insert([mentorDataToSave]);
 
-    if (insertErrorObj) {
-      toast({
-        title: "Error Saving Profile Details",
-        description: `Database Error: ${insertErrorObj.message || "Could not save mentor details."}. ${authFailed ? authFailureMessage : ''}`,
-        variant: "destructive",
-        duration: 9000,
-      });
-    } else { // Profile saved successfully
-      if (authFailed) {
+      if (insertError) {
+        console.error("Supabase mentor insert error object:", JSON.stringify(insertError, null, 2));
         toast({
-          title: "Profile Saved (With Authentication Issue)",
-          description: `Your profile details have been saved. However, ${authFailureMessage}. You may need to try logging in later or contact support.`,
-          variant: "warning",
-          duration: 10000,
+          variant: "destructive",
+          title: "Profile Saving Failed",
+          description: `Database error: ${insertError.message}. Please try again.`,
         });
       } else {
-        toast({
-          title: "Signup Initiated & Profile Saved!",
-          description: `A confirmation link has been sent to ${values.email}. Your profile details have been successfully saved.`,
-        });
+        if (!authErrorOccurred) { // Only show this if auth didn't also show a specific error.
+            toast({
+                title: "Profile Saved!",
+                description: "Your mentor profile has been successfully submitted.",
+            });
+        } else {
+             toast({
+                title: "Profile Saved (Auth Issue)",
+                description: "Your mentor profile was saved, but there was an issue with account creation/login. Please check your email or try logging in later.",
+            });
+        }
+        localStorage.setItem('careerDiveMentorEmail', data.email);
+        // Redirect to mentor dashboard
         if (typeof window !== "undefined") {
-          localStorage.setItem('careerDiveMentorEmail', values.email);
           window.location.href = 'https://mentor-dashboard.netlify.app/auth';
         }
       }
-      form.reset(); 
+
+    } catch (error: any) {
+      console.error("Unexpected error during signup:", error);
+      toast({
+        variant: "destructive",
+        title: "An Unexpected Error Occurred",
+        description: error.message || "Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -290,7 +276,7 @@ export function MentorSignupForm() {
           name="mentors_name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Full Name *</FormLabel>
+              <FormLabel>Full Name</FormLabel>
               <FormControl>
                 <Input placeholder="e.g., Jane Doe" {...field} />
               </FormControl>
@@ -298,173 +284,153 @@ export function MentorSignupForm() {
             </FormItem>
           )}
         />
+
         <FormField
           control={form.control}
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email *</FormLabel>
+              <FormLabel>Email Address</FormLabel>
               <FormControl>
                 <Input type="email" placeholder="e.g., jane.doe@example.com" {...field} />
               </FormControl>
-              <FormDescription>
-                A magic link or confirmation email will be sent here if account setup is successful.
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
+
         <FormField
           control={form.control}
           name="title"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Title / Current Role</FormLabel>
+              <FormLabel>Current Title/Profession</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., Senior Software Engineer" {...field} value={field.value ?? ""} />
+                <Input placeholder="e.g., Senior Software Engineer" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+
         <FormField
           control={form.control}
           name="area_of_expertise"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Area of Expertise</FormLabel>
+              <FormLabel>Primary Area of Expertise</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., Web Development, Product Management" {...field} value={field.value ?? ""} />
+                <Input placeholder="e.g., Web Development, Product Management" {...field} />
               </FormControl>
-              <FormDescription>
-                What is your primary area of expertise?
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
-         <FormField
+
+        <FormField
           control={form.control}
           name="skills"
-          render={({ field }) => (
+          render={() => (
             <FormItem>
-              <FormLabel>Skills *</FormLabel>
-              <FormControl>
-                <div className="flex flex-wrap gap-2">
-                  {predefinedSkills.map((skill) => (
-                    <Button
-                      type="button"
-                      key={skill}
-                      variant={field.value?.includes(skill) ? "default" : "outline"}
-                      onClick={() => {
-                        const currentSkills = field.value || [];
-                        const newSkills = currentSkills.includes(skill)
-                          ? currentSkills.filter((s) => s !== skill)
-                          : [...currentSkills, skill];
-                        field.onChange(newSkills);
-                      }}
-                      className="rounded-full px-3 py-1 text-sm"
-                    >
-                      {skill}
-                    </Button>
-                  ))}
-                </div>
-              </FormControl>
-              <FormDescription>
-                Select the skills you can offer mentorship in.
-              </FormDescription>
+              <FormLabel>Skills</FormLabel>
+              <FormDescription>Select skills you can mentor in.</FormDescription>
+              <Controller
+                control={form.control}
+                name="skills"
+                render={({ field }) => (
+                  <div className="flex flex-wrap gap-2">
+                    {predefinedSkills.map((skill) => (
+                      <Button
+                        key={skill}
+                        type="button"
+                        variant={field.value?.includes(skill) ? "default" : "outline"}
+                        onClick={() => {
+                          const currentSkills = field.value || [];
+                          const newSkills = currentSkills.includes(skill)
+                            ? currentSkills.filter((s) => s !== skill)
+                            : [...currentSkills, skill];
+                          field.onChange(newSkills);
+                        }}
+                      >
+                        {field.value?.includes(skill) && <Check className="mr-2 h-4 w-4" />}
+                        {skill}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              />
               <FormMessage />
             </FormItem>
           )}
         />
+
         <FormField
           control={form.control}
           name="years_of_experience"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Years of Experience</FormLabel>
+              <FormLabel>Years of Professional Experience (Optional)</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="e.g., 5" {...field} onChange={e => field.onChange(e.target.value === '' ? undefined : +e.target.value)} value={field.value ?? ""} />
+                <Input type="number" placeholder="e.g., 5" {...field} onChange={e => field.onChange(e.target.value === '' ? '' : parseInt(e.target.value, 10))} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+
         <FormField
           control={form.control}
           name="college"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>College / University</FormLabel>
+              <FormLabel>College/University (Optional)</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., Stanford University" {...field} value={field.value ?? ""}/>
+                <Input placeholder="e.g., Stanford University" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+
         <FormField
           control={form.control}
           name="linkedin_url"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>LinkedIn Profile URL</FormLabel>
+              <FormLabel>LinkedIn Profile URL (Optional)</FormLabel>
               <FormControl>
-                <Input placeholder="https://linkedin.com/in/yourprofile" {...field} value={field.value ?? ""} />
+                <Input type="url" placeholder="https://linkedin.com/in/janedoe" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+        
         <FormField
           control={form.control}
           name="phno"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Phone Number</FormLabel>
+              <FormLabel>Phone Number (Optional)</FormLabel>
               <FormControl>
-                <Input type="tel" placeholder="e.g., +91 XXXXXXXXXX" {...field} value={field.value ?? ""} />
+                <Input type="tel" placeholder="e.g., +1234567890" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="profile_pic_file"
-          render={({ field: { onChange, value, ...rest } }) => ( 
-            <FormItem>
-              <FormLabel>Profile Picture</FormLabel>
-              <FormControl>
-                <Input
-                  type="file"
-                  accept={ACCEPTED_IMAGE_TYPES.join(",")}
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    onChange(file || null);
-                  }}
-                  {...rest}
-                />
-              </FormControl>
-               <FormDescription>
-                Upload an image for your profile (max 5MB; JPG, PNG, WEBP, GIF).
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+
         <FormField
           control={form.control}
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Description / Bio</FormLabel>
+              <FormLabel>Short Bio/Description (Optional)</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="Tell us a bit about yourself, your experience, and what you can offer as a mentor."
-                  className="resize-y min-h-[100px]"
+                  placeholder="Tell us a bit about your experience and what you can offer as a mentor."
+                  className="resize-none"
                   {...field}
-                  value={field.value ?? ""}
                 />
               </FormControl>
               <FormMessage />
@@ -472,173 +438,114 @@ export function MentorSignupForm() {
           )}
         />
 
-        <div className="space-y-6">
-          <FormLabel className="text-lg font-semibold">Set Your Weekly Availability</FormLabel>
+        <FormField
+          control={form.control}
+          name="profile_pic_file"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Profile Picture (Optional)</FormLabel>
+              <FormControl>
+                <Input
+                  type="file"
+                  accept={ACCEPTED_IMAGE_TYPES.join(",")}
+                  onChange={(e) => field.onChange(e.target.files ? e.target.files[0] : null)}
+                />
+              </FormControl>
+              <FormDescription>Max 5MB. Recommended formats: JPG, PNG, GIF, WEBP.</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Set Your Weekly Availability</h3>
           {daysOfWeek.map((day) => (
-            <DayAvailabilityControl key={day} day={day} control={control} form={form} />
+            <div key={day} className="p-4 border rounded-md space-y-3 bg-card">
+              <FormField
+                control={form.control}
+                name={`availability.${day}.enabled`}
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between">
+                    <FormLabel className="text-base">{day}</FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              {form.watch(`availability.${day}.enabled`) && (
+                <div className="space-y-2">
+                  {dayFieldArrays[day].fields.map((slot, index) => (
+                    <div key={slot.id} className="flex items-end gap-2 p-2 border rounded-md">
+                      <FormField
+                        control={form.control}
+                        name={`availability.${day}.slots.${index}.start`}
+                        render={({ field }) => (
+                          <FormItem className="flex-1">
+                            <FormLabel>Start Time</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger><SelectValue placeholder="Select start time" /></SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {timeOptions.map(time => <SelectItem key={`start-${day}-${index}-${time}`} value={time}>{time}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`availability.${day}.slots.${index}.end`}
+                        render={({ field }) => (
+                          <FormItem className="flex-1">
+                            <FormLabel>End Time</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger><SelectValue placeholder="Select end time" /></SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {timeOptions.map(time => <SelectItem key={`end-${day}-${index}-${time}`} value={time}>{time}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <Button type="button" variant="ghost" size="icon" onClick={() => dayFieldArrays[day].remove(index)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button type="button" variant="outline" size="sm" onClick={() => dayFieldArrays[day].append({ start: "09:00", end: "10:00" })}>
+                    Add Time Slot
+                  </Button>
+                   <FormMessage>
+                    {/* @ts-ignore TODO: Fix this type error if possible when accessing nested errors */}
+                    {form.formState.errors.availability?.[day]?.slots?.message}
+                  </FormMessage>
+                </div>
+              )}
+            </div>
           ))}
+           <FormMessage>
+            {/* @ts-ignore */}
+            {form.formState.errors.availability?.message}
+            </FormMessage>
         </div>
 
-        <FormField
-            control={form.control}
-            name="gender"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Gender</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select gender (optional)" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="Male">Male</SelectItem>
-                    <SelectItem value="Female">Female</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                    <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
 
-        <Button type="submit" className="w-full md:w-auto" disabled={isSubmitting}>
+        <Button type="submit" disabled={isSubmitting} className="w-full">
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isSubmitting ? "Submitting..." : "Sign Up as Mentor"}
+          Sign Up as Mentor
         </Button>
       </form>
     </Form>
   );
 }
-
-interface DayAvailabilityControlProps {
-  day: DayOfWeek;
-  control: any; 
-  form: any; 
-}
-
-function DayAvailabilityControl({ day, control, form }: DayAvailabilityControlProps) {
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: `availability.${day}.slots`,
-  });
-
-  const isEnabled = form.watch(`availability.${day}.enabled`);
-
-  return (
-    <Card className="border-border/70 shadow-md">
-      <CardHeader className="flex flex-row items-center justify-between p-4">
-        <FormField
-          control={control}
-          name={`availability.${day}.enabled`}
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-              <FormControl>
-                <Checkbox
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-              <FormLabel className="text-base font-medium">
-                {day}
-              </FormLabel>
-            </FormItem>
-          )}
-        />
-        <Badge variant={isEnabled ? "default" : "secondary"}>
-          {isEnabled ? "Available" : "Unavailable"}
-        </Badge>
-      </CardHeader>
-      {isEnabled && (
-        <CardContent className="p-4 pt-0 space-y-3">
-          {fields.map((item, index) => (
-            <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-2 p-3 border rounded-md bg-secondary/30">
-              <div className="grid grid-cols-2 gap-2 flex-grow">
-                <FormField
-                  control={control}
-                  name={`availability.${day}.slots.${index}.start`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs">Start</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Start time" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {timeOptions.map(time => (
-                            <SelectItem key={`start-${time}`} value={time}>{time}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage className="text-xs" />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={control}
-                  name={`availability.${day}.slots.${index}.end`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs">End</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="End time" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {timeOptions.map(time => (
-                            <SelectItem key={`end-${time}`} value={time}>{time}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage className="text-xs" />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => remove(index)}
-                className="mt-2 sm:mt-0 text-destructive hover:bg-destructive/10 self-end sm:self-center"
-                aria-label="Remove slot"
-              >
-                <Trash2 className="h-4 w-4 mr-1 sm:mr-0" /> <span className="sm:hidden">Remove</span>
-              </Button>
-            </div>
-          ))}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => append({ start: '09:00', end: '10:00' })}
-            className="mt-2"
-          >
-            Add Slot
-          </Button>
-          {form.formState.errors.availability?.[day]?.slots?.message && (
-            <p className="text-sm font-medium text-destructive">
-              {/* @ts-ignore */}
-              {form.formState.errors.availability?.[day]?.slots?.message}
-            </p>
-          )}
-          {/* @ts-ignore Zod superRefine error on root of array */}
-          {form.formState.errors.availability?.[day]?.slots?.root?.message && (
-             <p className="text-sm font-medium text-destructive">
-                {/* @ts-ignore */}
-              {form.formState.errors.availability?.[day]?.slots?.root?.message}
-            </p>
-          )}
-        </CardContent>
-      )}
-    </Card>
-  );
-}
-    
 
     
