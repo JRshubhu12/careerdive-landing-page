@@ -64,10 +64,7 @@ const weeklyScheduleSchema = z.object(
           const slotA = daySchedule.slots[i];
           const slotB = daySchedule.slots[j];
           if (Math.max(parseInt(slotA.start.replace(":", "")), parseInt(slotB.start.replace(":", ""))) < Math.min(parseInt(slotA.end.replace(":", "")), parseInt(slotB.end.replace(":", "")))) {
-            // Do not call toast directly in refine, as it's a validation function.
-            // Return false to indicate validation failure. The message here can be generic.
-            // Specific toast messages can be handled in the onSubmit handler if needed.
-            return false; // Overlapping slots
+            return false; 
           }
         }
       }
@@ -82,6 +79,8 @@ const predefinedSkills = [
   "Product Management", "UX/UI Design", "DevOps", "Cybersecurity", "AI/Machine Learning",
   "Business Strategy", "Finance", "Human Resources", "Content Creation", "Public Speaking"
 ];
+
+const genderOptions = ["Male", "Female", "Other", "Prefer not to say"] as const;
 
 const mentorSignupSchema = z.object({
   mentors_name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -100,6 +99,7 @@ const mentorSignupSchema = z.object({
     .refine(file => !file || file.size <= MAX_FILE_SIZE, `Max file size is 5MB.`)
     .refine(file => !file || ACCEPTED_IMAGE_TYPES.includes(file.type), "Only .jpg, .jpeg, .png, .webp and .gif formats are accepted."),
   availability: weeklyScheduleSchema,
+  gender: z.enum(genderOptions).optional().or(z.literal("")),
 });
 
 type MentorSignupFormValues = z.infer<typeof mentorSignupSchema>;
@@ -127,6 +127,7 @@ export function MentorSignupForm() {
       skills: [],
       profile_pic_file: undefined,
       availability: defaultAvailability,
+      gender: "",
     },
   });
 
@@ -156,11 +157,12 @@ export function MentorSignupForm() {
     let authErrorMessage = "Could not initiate sign up. Please try again.";
 
     try {
+      // Attempt OTP/Magic Link sign in (and user creation if needed)
       const { data: authData, error: authError } = await supabase.auth.signInWithOtp({
         email: data.email,
         options: {
           shouldCreateUser: true,
-          emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined, 
+          emailRedirectTo: typeof window !== 'undefined' ? window.location.origin + '/get-started' : undefined, // Redirect back to a page that handles post-auth
         },
       });
 
@@ -168,44 +170,19 @@ export function MentorSignupForm() {
         console.error("Supabase Auth Error (signInWithOtp):", JSON.stringify(authError, null, 2));
         authErrorOccurred = true;
         authErrorMessage = authError.message || authErrorMessage;
-        
-        // If it's an unexpected_failure, we'll log it and proceed, 
-        // but the user won't have an auth.users entry created for this attempt.
-        if (authError.status === 500 && (authError as any).code === "unexpected_failure") {
-           console.warn("Supabase returned 'unexpected_failure' during OTP sign-in. Proceeding with profile save attempt.");
-           toast({
-            variant: "destructive",
-            title: "Authentication Issue (OTP)",
-            description: "There was an unexpected issue sending the confirmation email. Your profile will still be saved.",
-          });
-        } else {
-           toast({ // For other auth errors
-            variant: "destructive",
-            title: "Authentication Failed (OTP)",
-            description: authErrorMessage,
-          });
-          // For general auth errors (not unexpected_failure), we might reconsider proceeding,
-          // but current logic is to proceed with profile save.
-        }
       } else if (authData?.user) {
         authUserId = authData.user.id;
-        toast({
-          title: "Confirmation Email Sent",
-          description: "Please check your email for a confirmation link to complete your signup.",
-        });
-      } else if (authData && !authData.user && authData.session === null){
-         // This case means OTP sent, user may or may not exist yet.
-         toast({
-          title: "Confirmation Email Sent",
-          description: "Please check your email for a link to complete your signup.",
-        });
       }
-
+      // If authData is present but no user (e.g. OTP sent, user may or may not exist yet), authUserId remains null for now.
+      // The user_id in the mentors table will be set to the actual user ID once they confirm.
 
       let publicProfilePicUrl: string | undefined = undefined;
       if (data.profile_pic_file) {
         const file = data.profile_pic_file;
-        const fileName = `${authUserId || 'unverified_user'}/${Date.now()}-${file.name}`;
+        // Use a generic path for now, or one based on email if user_id isn't available yet
+        const picPathPrefix = authUserId || data.email.replace(/[^a-zA-Z0-9]/g, '_'); // Sanitize email for path
+        const fileName = `${picPathPrefix}/${Date.now()}-${file.name}`;
+        
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from("profile-pictures")
           .upload(fileName, file);
@@ -230,7 +207,8 @@ export function MentorSignupForm() {
         user_id: authUserId, 
         profile_pic_url: publicProfilePicUrl,
         years_of_experience: typeof data.years_of_experience === 'number' ? data.years_of_experience : null,
-        availability: JSON.stringify({ weeklySchedule: data.availability }) // Ensure data is stringified
+        availability: JSON.stringify({ weeklySchedule: data.availability }),
+        gender: data.gender || null, // Ensure empty string becomes null
       };
 
       const { error: insertError } = await supabase
@@ -245,26 +223,30 @@ export function MentorSignupForm() {
           description: `Database error: ${insertError.message}. Please try again.`,
         });
       } else {
-        if (authErrorOccurred && authError?.status === 500 && (authError as any).code === "unexpected_failure") {
+        // Profile saved successfully
+        localStorage.setItem('careerDiveMentorEmail', data.email);
+        
+        if (authErrorOccurred) {
+          if (authError?.status === 500 && (authError as any).code === "unexpected_failure") {
              toast({
                 title: "Profile Saved (Auth Issue)",
                 description: "Your mentor profile was saved, but there was an issue sending the confirmation email. Please check your email or try logging in later.",
             });
-        } else if (authErrorOccurred) { // Other auth errors, but profile saved
+          } else {
              toast({
                 title: "Profile Saved (Auth Failed)",
-                description: `Your mentor profile was saved, but authentication failed: ${authErrorMessage}`,
+                description: `Your mentor profile was saved, but authentication failed: ${authErrorMessage}. Check your email if a link was sent.`,
             });
-        } else { // Auth succeeded (OTP sent) and profile saved
-            toast({
-                title: "Profile Saved & Confirmation Sent!",
-                description: "Your mentor profile has been submitted. Please check your email for a confirmation link.",
+          }
+        } else {
+           toast({
+                title: "Profile Submitted!",
+                description: "Your mentor profile has been submitted. Please check your email for a confirmation link to complete your signup.",
             });
         }
-        localStorage.setItem('careerDiveMentorEmail', data.email);
         // Redirect to mentor dashboard
         if (typeof window !== "undefined") {
-          window.location.href = 'https://mentor-dashboard.netlify.app/auth';
+          window.location.href = 'https://mentor-dashboard.netlify.app/dashboard';
         }
       }
 
@@ -324,6 +306,32 @@ export function MentorSignupForm() {
             </FormItem>
           )}
         />
+        
+        <FormField
+          control={form.control}
+          name="gender"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Gender (Optional)</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select your gender" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {genderOptions.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
 
         <FormField
           control={form.control}
@@ -557,3 +565,6 @@ export function MentorSignupForm() {
     </Form>
   );
 }
+
+
+    
